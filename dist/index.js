@@ -311,7 +311,8 @@ var actionGetTokenHoldersCount = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_TOKEN_HOLDERS_COUNT_ANKR") {
+    var _a2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TOKEN_HOLDERS_COUNT_ANKR") {
       return true;
     }
     logGranular("Validating GET_TOKEN_HOLDERS_COUNT_ANKR action", {
@@ -337,13 +338,14 @@ var actionGetTokenHoldersCount = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d;
     logGranular("Executing GET_TOKEN_HOLDERS_COUNT_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       const config14 = await validateankrConfig(runtime);
@@ -358,7 +360,7 @@ var actionGetTokenHoldersCount = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -397,7 +399,7 @@ var actionGetTokenHoldersCount = {
           throw new APIError(`Ankr API error: ${response.data.error.message}`);
         }
         const result = response.data.result;
-        let formattedText = `Token Holders Count on ${parsedContent.chain?.toUpperCase() || "UNKNOWN"}:
+        let formattedText = `Token Holders Count on ${((_c = parsedContent.chain) == null ? void 0 : _c.toUpperCase()) || "UNKNOWN"}:
 
 `;
         formattedText += `Current Holders: ${result.latestHoldersCount.toLocaleString()}
@@ -430,7 +432,7 @@ Sync Status: ${result.syncStatus.status} (${result.syncStatus.lag})`;
         if (axios.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch token holders count: ${error.message}`,
-            error.response?.status
+            (_d = error.response) == null ? void 0 : _d.status
           );
         }
         throw new APIError("Failed to fetch token holders count");
@@ -500,7 +502,8 @@ var actionGetTokenPrice = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_TOKEN_PRICE_ANKR") {
+    var _a2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TOKEN_PRICE_ANKR") {
       return true;
     }
     logGranular2("Validating GET_TOKEN_PRICE_ANKR action", {
@@ -526,13 +529,14 @@ var actionGetTokenPrice = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c;
     logGranular2("Executing GET_TOKEN_PRICE_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       const config14 = await validateankrConfig(runtime);
@@ -547,7 +551,7 @@ var actionGetTokenPrice = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       validateRequiredFields(parsedContent, ["contract", "chain"]);
@@ -596,7 +600,7 @@ Sync Status: ${result.syncStatus.status} (lag: ${result.syncStatus.lag})`;
         if (axios2.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch token price: ${error.message}`,
-            error.response?.status
+            (_c = error.response) == null ? void 0 : _c.status
           );
         }
         throw new APIError("Failed to fetch token price");
@@ -681,7 +685,8 @@ var actionGetTokenTransfers = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_TOKEN_TRANSFERS_ANKR") {
+    var _a2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TOKEN_TRANSFERS_ANKR") {
       return true;
     }
     logGranular3("Validating GET_TOKEN_TRANSFERS_ANKR action", {
@@ -712,6 +717,7 @@ var actionGetTokenTransfers = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d;
     logGranular3("Executing GET_TOKEN_TRANSFERS_ANKR action");
     try {
       const messageContent = message.content;
@@ -727,7 +733,7 @@ var actionGetTokenTransfers = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_a2 = messageContent.text) == null ? void 0 : _a2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -752,7 +758,7 @@ var actionGetTokenTransfers = {
               blockchain: [parsedContent.chain],
               fromTimestamp: parsedContent.fromTimestamp,
               toTimestamp: parsedContent.toTimestamp,
-              pageSize: messageContent.filters?.pageSize || 10
+              pageSize: ((_b2 = messageContent.filters) == null ? void 0 : _b2.pageSize) || 10
             },
             id: 1
           },
@@ -770,7 +776,7 @@ var actionGetTokenTransfers = {
           throw new APIError(`Ankr API error: ${response.data.error.message}`);
         }
         const result = response.data.result;
-        let formattedText = `Token Transfers on ${parsedContent.chain?.toUpperCase() || "UNKNOWN"}:
+        let formattedText = `Token Transfers on ${((_c = parsedContent.chain) == null ? void 0 : _c.toUpperCase()) || "UNKNOWN"}:
 
 `;
         result.transfers.forEach((transfer, index) => {
@@ -812,7 +818,7 @@ Sync Status: ${result.syncStatus.status} (lag: ${result.syncStatus.lag})
         if (axios3.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch token transfers: ${error.message}`,
-            error.response?.status
+            (_d = error.response) == null ? void 0 : _d.status
           );
         }
         throw new APIError("Failed to fetch token transfers");
@@ -895,7 +901,8 @@ var actionGetAccountBalance = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_ACCOUNT_BALANCE_ANKR") {
+    var _a2, _b2, _c;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_ACCOUNT_BALANCE_ANKR") {
       return true;
     }
     logGranular4("Validating GET_ACCOUNT_BALANCE_ANKR action", {
@@ -903,10 +910,10 @@ var actionGetAccountBalance = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.walletAddress) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.walletAddress)) {
         throw new ValidationError("Wallet address is required");
       }
-      if (content.filters?.blockchain && !Array.isArray(content.filters.blockchain)) {
+      if (((_c = content.filters) == null ? void 0 : _c.blockchain) && !Array.isArray(content.filters.blockchain)) {
         throw new ValidationError("Blockchain must be an array");
       }
       logGranular4("Validation successful");
@@ -923,20 +930,21 @@ var actionGetAccountBalance = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c;
     logGranular4("Executing GET_ACCOUNT_BALANCE_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       console.log("Debug - Message content details:", {
-        hasText: !!messageContent?.text,
-        hasFilters: !!messageContent?.filters,
-        textContent: messageContent?.text,
-        contentType: typeof messageContent?.text
+        hasText: !!(messageContent == null ? void 0 : messageContent.text),
+        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
+        textContent: messageContent == null ? void 0 : messageContent.text,
+        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
       });
       const config14 = await validateankrConfig(runtime);
       console.log("Debug - Config validated:", {
@@ -950,7 +958,7 @@ var actionGetAccountBalance = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -993,7 +1001,7 @@ var actionGetAccountBalance = {
         }
         const balances = response.data.result.assets;
         const address = parsedContent.wallet;
-        let formattedText = `Here are the balances for wallet ${address?.slice(0, 6)}...${address?.slice(-4)}:
+        let formattedText = `Here are the balances for wallet ${address == null ? void 0 : address.slice(0, 6)}...${address == null ? void 0 : address.slice(-4)}:
 
 `;
         balances.forEach((balance, index) => {
@@ -1026,7 +1034,7 @@ var actionGetAccountBalance = {
         if (axios4.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch balance data: ${error.message}`,
-            error.response?.status
+            (_c = error.response) == null ? void 0 : _c.status
           );
         }
         throw new APIError("Failed to fetch balance data");
@@ -1104,7 +1112,8 @@ var actionGetTransactionsByAddress = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_TRANSACTIONS_BY_ADDRESS_ANKR") {
+    var _a2, _b2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TRANSACTIONS_BY_ADDRESS_ANKR") {
       return true;
     }
     logGranular5("Validating GET_TRANSACTIONS_BY_ADDRESS_ANKR action", {
@@ -1116,7 +1125,7 @@ var actionGetTransactionsByAddress = {
       if (!parsedContent.chain || !parsedContent.contract) {
         throw new ValidationError("Blockchain and address are required");
       }
-      if (content.filters?.pageSize && (content.filters.pageSize < 1 || content.filters.pageSize > 100)) {
+      if (((_b2 = content.filters) == null ? void 0 : _b2.pageSize) && (content.filters.pageSize < 1 || content.filters.pageSize > 100)) {
         throw new ValidationError("Page size must be between 1 and 100");
       }
       logGranular5("Validation successful");
@@ -1133,20 +1142,21 @@ var actionGetTransactionsByAddress = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d, _e, _f;
     logGranular5("Executing GET_TRANSACTIONS_BY_ADDRESS_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       console.log("Debug - Message content details:", {
-        hasText: !!messageContent?.text,
-        hasFilters: !!messageContent?.filters,
-        textContent: messageContent?.text,
-        contentType: typeof messageContent?.text
+        hasText: !!(messageContent == null ? void 0 : messageContent.text),
+        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
+        textContent: messageContent == null ? void 0 : messageContent.text,
+        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
       });
       const config14 = await validateankrConfig(runtime);
       console.log("Debug - Config validated:", {
@@ -1160,7 +1170,7 @@ var actionGetTransactionsByAddress = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -1179,8 +1189,8 @@ var actionGetTransactionsByAddress = {
             params: {
               blockchain: [parsedContent.chain],
               address: parsedContent.contract,
-              pageSize: messageContent.filters?.pageSize || 5,
-              includeLogs: messageContent.filters?.includeLogs || true
+              pageSize: ((_c = messageContent.filters) == null ? void 0 : _c.pageSize) || 5,
+              includeLogs: ((_d = messageContent.filters) == null ? void 0 : _d.includeLogs) || true
             },
             id: 1
           },
@@ -1194,7 +1204,7 @@ var actionGetTransactionsByAddress = {
           throw new APIError(`Ankr API error: ${response.data.error.message}`);
         }
         const result = response.data.result;
-        let formattedText = `Transactions for ${parsedContent.contract} on ${parsedContent.chain?.toUpperCase() || "UNKNOWN"}:
+        let formattedText = `Transactions for ${parsedContent.contract} on ${((_e = parsedContent.chain) == null ? void 0 : _e.toUpperCase()) || "UNKNOWN"}:
 
 `;
         result.transactions.forEach((tx, index) => {
@@ -1234,7 +1244,7 @@ var actionGetTransactionsByAddress = {
         if (axios5.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch transactions: ${error.message}`,
-            error.response?.status
+            (_f = error.response) == null ? void 0 : _f.status
           );
         }
         throw new APIError("Failed to fetch transactions");
@@ -1311,7 +1321,8 @@ var actionGetTransactionsByHash = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_TRANSACTIONS_BY_HASH_ANKR") {
+    var _a2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TRANSACTIONS_BY_HASH_ANKR") {
       return true;
     }
     logGranular6("Validating GET_TRANSACTIONS_BY_HASH_ANKR action", {
@@ -1340,20 +1351,21 @@ var actionGetTransactionsByHash = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d;
     logGranular6("Executing GET_TRANSACTIONS_BY_HASH_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       console.log("Debug - Message content details:", {
-        hasText: !!messageContent?.text,
-        hasFilters: !!messageContent?.filters,
-        textContent: messageContent?.text,
-        contentType: typeof messageContent?.text
+        hasText: !!(messageContent == null ? void 0 : messageContent.text),
+        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
+        textContent: messageContent == null ? void 0 : messageContent.text,
+        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
       });
       const config14 = await validateankrConfig(runtime);
       console.log("Debug - Config validated:", {
@@ -1367,7 +1379,7 @@ var actionGetTransactionsByHash = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -1406,7 +1418,7 @@ var actionGetTransactionsByHash = {
         const gasUsed = Number.parseInt(transaction.gasUsed, 16);
         const blockNumber = Number.parseInt(transaction.blockNumber, 16);
         const status = transaction.status === "0x1" ? "Success" : "Failed";
-        let formattedText = `Transaction Details on ${parsedContent.chain?.toUpperCase() || "UNKNOWN"}:
+        let formattedText = `Transaction Details on ${((_c = parsedContent.chain) == null ? void 0 : _c.toUpperCase()) || "UNKNOWN"}:
 
 `;
         formattedText += `Hash: ${transaction.hash}
@@ -1439,7 +1451,7 @@ var actionGetTransactionsByHash = {
         if (axios6.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch transaction: ${error.message}`,
-            error.response?.status
+            (_d = error.response) == null ? void 0 : _d.status
           );
         }
         throw new APIError("Failed to fetch transaction");
@@ -1510,7 +1522,8 @@ var actionGetBlockchainStats = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_BLOCKCHAIN_STATS_ANKR") {
+    var _a2, _b2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_BLOCKCHAIN_STATS_ANKR") {
       return true;
     }
     logGranular7("Validating GET_BLOCKCHAIN_STATS_ANKR action", {
@@ -1518,7 +1531,7 @@ var actionGetBlockchainStats = {
     });
     try {
       const content = message.content;
-      if (content.filters?.blockchain && !Array.isArray(content.filters.blockchain)) {
+      if (((_b2 = content.filters) == null ? void 0 : _b2.blockchain) && !Array.isArray(content.filters.blockchain)) {
         throw new ValidationError("Blockchain must be an array");
       }
       logGranular7("Validation successful");
@@ -1535,20 +1548,21 @@ var actionGetBlockchainStats = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c;
     logGranular7("Executing GET_BLOCKCHAIN_STATS_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       console.log("Debug - Message content details:", {
-        hasText: !!messageContent?.text,
-        hasFilters: !!messageContent?.filters,
-        textContent: messageContent?.text,
-        contentType: typeof messageContent?.text
+        hasText: !!(messageContent == null ? void 0 : messageContent.text),
+        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
+        textContent: messageContent == null ? void 0 : messageContent.text,
+        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
       });
       const config14 = await validateankrConfig(runtime);
       console.log("Debug - Config validated:", {
@@ -1562,7 +1576,7 @@ var actionGetBlockchainStats = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -1642,7 +1656,7 @@ var actionGetBlockchainStats = {
         if (axios7.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch blockchain stats: ${error.message}`,
-            error.response?.status
+            (_c = error.response) == null ? void 0 : _c.status
           );
         }
         throw new APIError("Failed to fetch blockchain stats");
@@ -1714,7 +1728,8 @@ var actionGetCurrencies = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_CURRENCIES_ANKR") {
+    var _a2, _b2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_CURRENCIES_ANKR") {
       return true;
     }
     logGranular8("Validating GET_CURRENCIES_ANKR action", {
@@ -1722,7 +1737,7 @@ var actionGetCurrencies = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.blockchain) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain)) {
         throw new ValidationError("Blockchain is required");
       }
       logGranular8("Validation successful");
@@ -1739,13 +1754,14 @@ var actionGetCurrencies = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d;
     logGranular8("Executing GET_CURRENCIES_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       const config14 = await validateankrConfig(runtime);
@@ -1760,7 +1776,7 @@ var actionGetCurrencies = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -1771,7 +1787,7 @@ var actionGetCurrencies = {
       validateRequiredFields(parsedContent, ["chain"]);
       const requestParams = {
         blockchain: parsedContent.chain,
-        pageSize: messageContent.filters?.pageSize ?? 5
+        pageSize: ((_c = messageContent.filters) == null ? void 0 : _c.pageSize) ?? 5
       };
       console.log("Debug - API request parameters:", {
         params: requestParams,
@@ -1832,7 +1848,7 @@ var actionGetCurrencies = {
         if (axios8.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch currencies data: ${error.message}`,
-            error.response?.status
+            (_d = error.response) == null ? void 0 : _d.status
           );
         }
         throw new APIError("Failed to fetch currencies data");
@@ -1915,7 +1931,8 @@ var actionGetInteractions = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_INTERACTIONS_ANKR") {
+    var _a2, _b2;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_INTERACTIONS_ANKR") {
       return true;
     }
     logGranular9("Validating GET_INTERACTIONS_ANKR action", {
@@ -1923,7 +1940,7 @@ var actionGetInteractions = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.address) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.address)) {
         throw new ValidationError("Wallet address is required");
       }
       logGranular9("Validation successful");
@@ -1940,6 +1957,7 @@ var actionGetInteractions = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c;
     logGranular9("Executing GET_INTERACTIONS_ANKR action");
     try {
       const messageContent = message.content;
@@ -1958,8 +1976,8 @@ var actionGetInteractions = {
       const requestParams = {
         blockchain: parsedContent.chain || "eth",
         address: parsedContent.wallet,
-        pageSize: messageContent.filters?.pageSize ?? 5,
-        pageToken: messageContent.filters?.pageToken
+        pageSize: ((_a2 = messageContent.filters) == null ? void 0 : _a2.pageSize) ?? 5,
+        pageToken: (_b2 = messageContent.filters) == null ? void 0 : _b2.pageToken
       };
       try {
         const response = await axios9.post(
@@ -2002,7 +2020,7 @@ Lag: ${response.data.result.syncStatus.lag}`;
         if (axios9.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch interactions data: ${error.message}`,
-            error.response?.status
+            (_c = error.response) == null ? void 0 : _c.status
           );
         }
         throw new APIError("Failed to fetch interactions data");
@@ -2080,7 +2098,8 @@ var actionGetNFTHolders = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_NFT_HOLDERS_ANKR") {
+    var _a2, _b2, _c;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFT_HOLDERS_ANKR") {
       return true;
     }
     logGranular10("Validating GET_NFT_HOLDERS_ANKR action", {
@@ -2088,10 +2107,10 @@ var actionGetNFTHolders = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.contractAddress) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.contractAddress)) {
         throw new ValidationError("Contract address is required");
       }
-      if (content.filters?.blockchain && typeof content.filters.blockchain !== "string") {
+      if (((_c = content.filters) == null ? void 0 : _c.blockchain) && typeof content.filters.blockchain !== "string") {
         throw new ValidationError("Blockchain must be a string");
       }
       logGranular10("Validation successful");
@@ -2108,13 +2127,14 @@ var actionGetNFTHolders = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d;
     logGranular10("Executing GET_NFT_HOLDERS_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       const config14 = await validateankrConfig(runtime);
@@ -2129,7 +2149,7 @@ var actionGetNFTHolders = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -2145,8 +2165,8 @@ var actionGetNFTHolders = {
       const requestParams = {
         blockchain: parsedContent.chain,
         contractAddress: parsedContent.contract,
-        pageSize: messageContent.filters?.pageSize || 10,
-        pageToken: messageContent.filters?.pageToken
+        pageSize: ((_c = messageContent.filters) == null ? void 0 : _c.pageSize) || 10,
+        pageToken: (_d = messageContent.filters) == null ? void 0 : _d.pageToken
       };
       console.log("Debug - API request parameters:", {
         params: requestParams,
@@ -2298,7 +2318,8 @@ var actionGetNFTTransfers = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_NFT_TRANSFERS_ANKR") {
+    var _a2, _b2, _c;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFT_TRANSFERS_ANKR") {
       return true;
     }
     logGranular11("Validating GET_NFT_TRANSFERS_ANKR action", {
@@ -2306,7 +2327,7 @@ var actionGetNFTTransfers = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.blockchain || !content.filters?.contractAddress) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain) || !((_c = content.filters) == null ? void 0 : _c.contractAddress)) {
         throw new ValidationError("Blockchain and contract address are required");
       }
       logGranular11("Validation successful");
@@ -2323,20 +2344,21 @@ var actionGetNFTTransfers = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c;
     logGranular11("Executing GET_NFT_TRANSFERS_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       console.log("Debug - Message content details:", {
-        hasText: !!messageContent?.text,
-        hasFilters: !!messageContent?.filters,
-        textContent: messageContent?.text,
-        contentType: typeof messageContent?.text
+        hasText: !!(messageContent == null ? void 0 : messageContent.text),
+        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
+        textContent: messageContent == null ? void 0 : messageContent.text,
+        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
       });
       const config14 = await validateankrConfig(runtime);
       console.log("Debug - Config validated:", {
@@ -2350,7 +2372,7 @@ var actionGetNFTTransfers = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -2435,7 +2457,7 @@ var actionGetNFTTransfers = {
         if (axios11.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch NFT transfers: ${error.message}`,
-            error.response?.status
+            (_c = error.response) == null ? void 0 : _c.status
           );
         }
         throw new APIError("Failed to fetch NFT transfers");
@@ -2517,7 +2539,8 @@ var actionGetNFTMetadata = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_NFT_METADATA_ANKR") {
+    var _a2, _b2, _c, _d;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFT_METADATA_ANKR") {
       return true;
     }
     logGranular12("Validating GET_NFT_METADATA_ANKR action", {
@@ -2525,7 +2548,7 @@ var actionGetNFTMetadata = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.blockchain || !content.filters?.contractAddress || !content.filters?.tokenId) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain) || !((_c = content.filters) == null ? void 0 : _c.contractAddress) || !((_d = content.filters) == null ? void 0 : _d.tokenId)) {
         throw new ValidationError("Blockchain, contract address, and token ID are required");
       }
       logGranular12("Validation successful");
@@ -2542,13 +2565,14 @@ var actionGetNFTMetadata = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c;
     logGranular12("Executing GET_NFT_METADATA_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type,
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type,
         allKeys: Object.keys(message.content || {})
       });
       const config14 = await validateankrConfig(runtime);
@@ -2563,7 +2587,7 @@ var actionGetNFTMetadata = {
       const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
       console.log("Debug - Raw prompt:", {
         text: messageContent.text,
-        promptLength: messageContent.text?.length
+        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
       });
       const parsedContent = parseAPIContent(messageContent.text);
       console.log("Debug - Parsed API content:", {
@@ -2647,7 +2671,7 @@ Image URL: ${nftData.attributes.imageUrl}
         if (axios12.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch NFT metadata: ${error.message}`,
-            error.response?.status
+            (_c = error.response) == null ? void 0 : _c.status
           );
         }
         throw new APIError("Failed to fetch NFT metadata");
@@ -2735,7 +2759,8 @@ var actionGetNFTsByOwner = {
   // Core Validation implementation
   // ------------------------------------------------------------------------------------------------
   validate: async (_runtime, message) => {
-    if (message.content?.type !== "GET_NFTS_BY_OWNER_ANKR") {
+    var _a2, _b2, _c, _d;
+    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFTS_BY_OWNER_ANKR") {
       return true;
     }
     logGranular13("Validating GET_NFTS_BY_OWNER_ANKR action", {
@@ -2743,10 +2768,10 @@ var actionGetNFTsByOwner = {
     });
     try {
       const content = message.content;
-      if (!content.filters?.blockchain || !content.filters?.walletAddress) {
+      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain) || !((_c = content.filters) == null ? void 0 : _c.walletAddress)) {
         throw new ValidationError("Blockchain and wallet address are required");
       }
-      if (content.filters?.blockchain && !Array.isArray(content.filters.blockchain)) {
+      if (((_d = content.filters) == null ? void 0 : _d.blockchain) && !Array.isArray(content.filters.blockchain)) {
         throw new ValidationError("Blockchain must be an array");
       }
       logGranular13("Validation successful");
@@ -2763,13 +2788,14 @@ var actionGetNFTsByOwner = {
   // Core Handler implementation
   // ------------------------------------------------------------------------------------------------
   handler: async (runtime, message, _state, _options = {}, callback) => {
+    var _a2, _b2, _c, _d;
     logGranular13("Executing GET_NFTS_BY_OWNER_ANKR action");
     try {
       const messageContent = message.content;
       console.log("Debug - Full message content:", {
         fullContent: message.content,
-        rawText: messageContent?.text,
-        type: message.content?.type
+        rawText: messageContent == null ? void 0 : messageContent.text,
+        type: (_a2 = message.content) == null ? void 0 : _a2.type
       });
       const config14 = await validateankrConfig(runtime);
       console.log("Debug - Config validated:", {
@@ -2794,8 +2820,8 @@ var actionGetNFTsByOwner = {
         blockchain: [parsedContent.chain],
         // API expects array
         walletAddress: parsedContent.wallet,
-        pageSize: messageContent.filters?.pageSize ?? 10,
-        pageToken: messageContent.filters?.pageToken
+        pageSize: ((_b2 = messageContent.filters) == null ? void 0 : _b2.pageSize) ?? 10,
+        pageToken: (_c = messageContent.filters) == null ? void 0 : _c.pageToken
       };
       console.log("Debug - API request parameters:", requestParams);
       try {
@@ -2863,7 +2889,7 @@ var actionGetNFTsByOwner = {
         if (axios13.isAxiosError(error)) {
           throw new APIError(
             `Failed to fetch NFTs data: ${error.message}`,
-            error.response?.status
+            (_d = error.response) == null ? void 0 : _d.status
           );
         }
         throw new APIError("Failed to fetch NFTs data");
@@ -2907,6 +2933,7 @@ var actions = [
   actionGetNFTsByOwner
 ];
 var ANKR_SPASH = getConfig().ANKR_WALLET;
+var _a, _b;
 if (ANKR_SPASH) {
   console.log(`
 ${chalk.cyan("\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510")}`);
@@ -2934,8 +2961,8 @@ ${chalk.cyan("\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
       chalk.white(action.name),
       typeof action.handler === "function" ? chalk.green("\u2713") : chalk.red("\u2717"),
       typeof action.validate === "function" ? chalk.green("\u2713") : chalk.red("\u2717"),
-      action.examples?.length > 0 ? chalk.green("\u2713") : chalk.red("\u2717"),
-      chalk.gray(action.similes?.join(", ") || "none")
+      ((_a = action.examples) == null ? void 0 : _a.length) > 0 ? chalk.green("\u2713") : chalk.red("\u2717"),
+      chalk.gray(((_b = action.similes) == null ? void 0 : _b.join(", ")) || "none")
     ]);
   }
   console.log(`
