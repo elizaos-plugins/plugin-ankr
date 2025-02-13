@@ -1,5 +1,5 @@
 {
-    "name": "@elizaos/plugin-ankr",
+    "name": "@elizaos-plugins/plugin-ankr",
     "version": "0.1.9",
     "description": "ANKR Plugin for ElizaOS",
     "main": "dist/index.js",
@@ -46,8 +46,7 @@
         "vite-tsconfig-paths": "^4.2.2",
         "vitest": "^3.0.0"
     },
-    "peerDependencies": {
-    },
+    "peerDependencies": {},
     "engines": {
         "node": ">=18.0.0"
     }
