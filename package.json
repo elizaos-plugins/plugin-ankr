@@ -49,5 +49,40 @@
     "peerDependencies": {},
     "engines": {
         "node": ">=18.0.0"
+    },
+    "agentConfig": {
+        "pluginType": "elizaos:client:1.0.0",
+        "pluginParameters": {
+            "ANKR_ENV": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Must be one of: production, staging"
+            },
+            "ANKR_WALLET": {
+                "type": "string",
+                "minLength": 1,
+                "description": "ANKR_WALLET is required"
+            },
+            "ANKR_MAX_RETRIES": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Must be a string transformable to Number"
+            },
+            "ANKR_RETRY_DELAY": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Must be a string transformable to Number"
+            },
+            "ANKR_TIMEOUT": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Must be a string transformable to Number"
+            },
+            "ANKR_LOG_LEVEL": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Must be one of: error, warn, info, debug"
+            }
+        }
     }
 }
