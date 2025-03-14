@@ -1,6 +1,6 @@
 ## Ankr Plugin for ElizaOS
 
-![alt text](src/assets/ankr.jpg)
+![alt text](assets/ankr.jpg)
 
 <div align="center">
   <h3>🔗 Blockchain Data Query Interface</h3>

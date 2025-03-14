@@ -61,7 +61,7 @@ if (ANKR_SPASH) {
   );
   console.log(
     chalk.cyan("│") +
-      chalk.white("  Version: 1.0.0                        ") +
+      chalk.white("  Version: 0.2.0                        ") +
       chalk.cyan("│")
   );
   console.log(chalk.cyan("└────────────────────────────────────────┘"));
