@@ -58,35 +58,10 @@
   "agentConfig": {
     "pluginType": "elizaos:client:1.0.0",
     "pluginParameters": {
-      "ANKR_ENV": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Must be one of: production, staging"
-      },
       "ANKR_API_KEY": {
         "type": "string",
         "minLength": 1,
         "description": "ANKR_API_KEY is required"
-      },
-      "ANKR_MAX_RETRIES": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Must be a string transformable to Number"
-      },
-      "ANKR_RETRY_DELAY": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Must be a string transformable to Number"
-      },
-      "ANKR_TIMEOUT": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Must be a string transformable to Number"
-      },
-      "ANKR_LOG_LEVEL": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Must be one of: error, warn, info, debug"
       }
     }
   }
