@@ -1,88 +1,93 @@
 {
-    "name": "@elizaos-plugins/plugin-ankr",
-    "version": "0.1.9",
-    "description": "ANKR Plugin for ElizaOS",
-    "main": "dist/index.js",
-    "types": "dist/index.d.ts",
-    "type": "module",
-    "scripts": {
-        "build": "tsup",
-        "dev": "tsup --watch",
-        "clean": "rm -rf dist",
-        "lint": "biome lint .",
-        "lint:fix": "biome check --apply .",
-        "format": "biome format .",
-        "format:fix": "biome format --write .",
-        "test": "vitest",
-        "test:watch": "vitest watch",
-        "test:coverage": "vitest run --coverage",
-        "test:ui": "vitest --ui"
-    },
-    "dependencies": {
-        "axios": "^1.6.5",
-        "chalk": "^5.3.0",
-        "cli-table3": "^0.6.3",
-        "dotenv": "^16.4.1",
-        "ora": "^8.0.1",
-        "zod": "^3.22.4",
-        "ssh2": "^1.15.0",
-        "@coinbase/coinbase-sdk": "^0.15.0",
-        "viem": "^2.0.0",
-        "decimal.js": "^10.4.3"
-    },
-    "devDependencies": {
-        "@biomejs/biome": "1.9.4",
-        "@types/dotenv": "^8.2.0",
-        "@types/jest": "^29.5.11",
-        "@types/node": "^20.11.5",
-        "@types/ssh2": "^1.11.18",
-        "@typescript-eslint/eslint-plugin": "^6.19.0",
-        "@typescript-eslint/parser": "^6.19.0",
-        "@vitest/coverage-v8": "^1.2.1",
-        "@vitest/ui": "^0.34.6",
-        "tsup": "^8.0.1",
-        "typescript": "^5.3.3",
-        "vite": "^5.0.10",
-        "vite-tsconfig-paths": "^4.2.2",
-        "vitest": "^3.0.0"
-    },
-    "peerDependencies": {},
-    "engines": {
-        "node": ">=18.0.0"
-    },
-    "agentConfig": {
-        "pluginType": "elizaos:client:1.0.0",
-        "pluginParameters": {
-            "ANKR_ENV": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Must be one of: production, staging"
-            },
-            "ANKR_WALLET": {
-                "type": "string",
-                "minLength": 1,
-                "description": "ANKR_WALLET is required"
-            },
-            "ANKR_MAX_RETRIES": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Must be a string transformable to Number"
-            },
-            "ANKR_RETRY_DELAY": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Must be a string transformable to Number"
-            },
-            "ANKR_TIMEOUT": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Must be a string transformable to Number"
-            },
-            "ANKR_LOG_LEVEL": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Must be one of: error, warn, info, debug"
-            }
-        }
+  "name": "@elizaos-plugins/plugin-ankr",
+  "version": "0.2.0",
+  "description": "ANKR Plugin for ElizaOS",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "lint": "biome lint .",
+    "lint:fix": "biome check --apply .",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "test": "vitest",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "test:ankr": "vitest run src/tests/ankr.e2e.test.ts"
+  },
+  "dependencies": {
+    "@ankr.com/ankr.js": "v0.6.0-alpha.0",
+    "@coinbase/coinbase-sdk": "^0.15.0",
+    "@elizaos/adapter-sqlite": "0.25.6-alpha.1",
+    "@elizaos/core": "^0.25.9",
+    "axios": "^1.6.5",
+    "better-sqlite3": "^11.8.1",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.3",
+    "decimal.js": "^10.4.3",
+    "dotenv": "^16.4.1",
+    "ora": "^8.0.1",
+    "sharp": "^0.33.5",
+    "ssh2": "^1.15.0",
+    "viem": "^2.0.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/dotenv": "^8.2.0",
+    "@types/jest": "^29.5.11",
+    "@types/node": "^20.11.5",
+    "@types/ssh2": "^1.11.18",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "^1.2.1",
+    "@vitest/ui": "^0.34.6",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "vite-tsconfig-paths": "^4.2.2",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:client:1.0.0",
+    "pluginParameters": {
+      "ANKR_ENV": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Must be one of: production, staging"
+      },
+      "ANKR_API_KEY": {
+        "type": "string",
+        "minLength": 1,
+        "description": "ANKR_API_KEY is required"
+      },
+      "ANKR_MAX_RETRIES": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Must be a string transformable to Number"
+      },
+      "ANKR_RETRY_DELAY": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Must be a string transformable to Number"
+      },
+      "ANKR_TIMEOUT": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Must be a string transformable to Number"
+      },
+      "ANKR_LOG_LEVEL": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Must be one of: error, warn, info, debug"
+      }
     }
+  }
 }
