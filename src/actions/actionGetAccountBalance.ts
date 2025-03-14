@@ -1,4 +1,8 @@
-import { Blockchain, GetAccountBalanceReply } from "@ankr.com/ankr.js";
+import {
+  AnkrProvider,
+  Blockchain,
+  GetAccountBalanceReply,
+} from "@ankr.com/ankr.js";
 import { Action, IAgentRuntime, Memory } from "@elizaos/core";
 import { z } from "zod";
 import { Blockchains } from "../ankr/blockchains";
@@ -70,7 +74,7 @@ const formatGetAccountBalanceReply = (
  * Handles the API call to get account balance
  */
 const getAccountBalanceHandler = (
-  provider: any,
+  provider: AnkrProvider,
   request: GetAccountBalanceRequest
 ): Promise<GetAccountBalanceReply> => {
   return provider.getAccountBalance({

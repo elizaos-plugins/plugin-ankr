@@ -481,4 +481,4 @@ describe("Ankr API E2E Tests", () => {
       expect(receivedResponse.text).toContain("Historical Data:");
     });
   }, 30000);
-}, 30000);
+});
