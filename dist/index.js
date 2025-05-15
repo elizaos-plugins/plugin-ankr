@@ -5,58 +5,21 @@ import ora from "ora";
 
 // src/environment.ts
 import { z } from "zod";
-var ENV = "production";
-var ANKR_ENDPOINTS = {
-  production: {
-    multichain: "https://rpc.ankr.com/multichain/"
-  }
-};
 var ankrEnvSchema = z.object({
-  // API Configuration
-  ANKR_ENV: z.enum(["production", "staging"]).default("production"),
-  ANKR_WALLET: z.string().min(1, "ANKR_WALLET is required"),
-  // Request Configuration
-  ANKR_MAX_RETRIES: z.string().transform(Number).default("3"),
-  ANKR_RETRY_DELAY: z.string().transform(Number).default("1000"),
-  ANKR_TIMEOUT: z.string().transform(Number).default("5000"),
-  // Logging Configuration
-  ANKR_GRANULAR_LOG: z.boolean().default(true),
-  ANKR_LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
-  // Runtime Configuration
-  ANKR_RUNTIME_CHECK_MODE: z.boolean().default(false),
-  ANKR_SPASH: z.boolean().default(false)
+  ANKR_API_KEY: z.string().min(1, "ANKR_API_KEY is required")
 });
-function getConfig(env = ENV || process.env.ANKR_ENV) {
-  ENV = env || "production";
+function getConfig() {
   return {
-    ANKR_ENV: env || "production",
-    ANKR_WALLET: process.env.ANKR_WALLET || "",
-    ANKR_MAX_RETRIES: Number(process.env.ANKR_MAX_RETRIES || "3"),
-    ANKR_RETRY_DELAY: Number(process.env.ANKR_RETRY_DELAY || "1000"),
-    ANKR_TIMEOUT: Number(process.env.ANKR_TIMEOUT || "5000"),
-    ANKR_GRANULAR_LOG: process.env.ANKR_GRANULAR_LOG === "true" || false,
-    ANKR_LOG_LEVEL: process.env.ANKR_LOG_LEVEL || "info",
-    ANKR_RUNTIME_CHECK_MODE: process.env.RUNTIME_CHECK_MODE === "true" || false,
-    ANKR_SPASH: process.env.ANKR_SPASH === "true" || false
+    ANKR_API_KEY: process.env.ANKR_API_KEY || ""
   };
 }
-async function validateankrConfig(runtime) {
+async function validateAnkrConfig(runtime) {
   try {
-    const envConfig = getConfig(
-      runtime.getSetting("ankr_ENV") ?? void 0
-    );
-    const config14 = {
-      ANKR_ENV: process.env.ANKR_ENV || runtime.getSetting("ANKR_ENV") || envConfig.ANKR_ENV,
-      ANKR_WALLET: process.env.ANKR_WALLET || runtime.getSetting("ANKR_WALLET") || envConfig.ANKR_WALLET,
-      ANKR_MAX_RETRIES: process.env.ANKR_MAX_RETRIES || runtime.getSetting("ANKR_MAX_RETRIES") || envConfig.ANKR_MAX_RETRIES.toString(),
-      ANKR_RETRY_DELAY: process.env.ANKR_RETRY_DELAY || runtime.getSetting("ANKR_RETRY_DELAY") || envConfig.ANKR_RETRY_DELAY.toString(),
-      ANKR_TIMEOUT: process.env.ANKR_TIMEOUT || runtime.getSetting("ANKR_TIMEOUT") || envConfig.ANKR_TIMEOUT.toString(),
-      ANKR_GRANULAR_LOG: process.env.ANKR_GRANULAR_LOG === "true" || false,
-      ANKR_LOG_LEVEL: process.env.ANKR_LOG_LEVEL || runtime.getSetting("ANKR_LOG_LEVEL") || envConfig.ANKR_LOG_LEVEL,
-      ANKR_RUNTIME_CHECK_MODE: process.env.RUNTIME_CHECK_MODE === "true" || false,
-      ANKR_SPASH: process.env.ANKR_SPASH === "true" || false
+    const envConfig = getConfig();
+    const config = {
+      ANKR_API_KEY: process.env.ANKR_API_KEY || runtime.getSetting("ANKR_API_KEY") || envConfig.ANKR_API_KEY
     };
-    return ankrEnvSchema.parse(config14);
+    return ankrEnvSchema.parse(config);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to validate ANKR configuration: ${errorMessage}`);
@@ -64,8 +27,7 @@ async function validateankrConfig(runtime) {
 }
 
 // src/actions/actionGetTokenHoldersCount.ts
-import { elizaLogger as elizaLogger2 } from "@elizaos/core";
-import axios from "axios";
+import { z as z2 } from "zod";
 
 // src/error/base.ts
 var HyperbolicError = class _HyperbolicError extends Error {
@@ -98,2817 +60,1435 @@ var ValidationError = class _ValidationError extends HyperbolicError {
   }
 };
 
-// src/validator/apiParseValidation.ts
-import { elizaLogger } from "@elizaos/core";
-var ADDRESS_REGEX = /^0x[a-fA-F0-9]{40}$/;
-var TX_HASH_REGEX = /^0x[a-fA-F0-9]{64}$/;
-var normalizeChainName = (chain) => {
-  chain = chain.toLowerCase().trim();
-  switch (chain) {
-    case "eth":
-    case "ethereum":
-      return "eth";
-    case "bsc":
-    case "bnb":
-      return "bsc";
-    case "polygon":
-    case "matic":
-      return "polygon";
-    case "avalanche":
-    case "avax":
-      return "avalanche";
-    case "optimism":
-    case "op":
-      return "optimism";
-    case "base":
-      return "base";
-    default:
-      throw new ValidationError(`Unsupported blockchain: ${chain}`);
-  }
-};
-var validateAddress = (address) => {
-  return ADDRESS_REGEX.test(address);
-};
-var validateTxHash = (hash) => {
-  return TX_HASH_REGEX.test(hash);
-};
-var validateBlockNumber = (block) => {
-  return /^\d+$/.test(block);
-};
-var validateTimestamp = (timestamp) => {
-  const num = parseInt(timestamp, 10);
-  return !isNaN(num) && num > 0;
-};
-var validateTokenId = (tokenId) => {
-  return tokenId.trim() !== "";
-};
-function parseAPIContent(text) {
-  try {
-    const parsed = {
-      raw: {
-        text,
-        matches: {
-          wallet: false,
-          chain: false,
-          contract: false,
-          token: false,
-          txHash: false,
-          block: false,
-          block2: false,
-          fromTimestamp: false,
-          toTimestamp: false
-        }
-      }
-    };
-    const walletMatch = text.match(/\[wallet\]([\s\S]*?)\[\/wallet\]/);
-    if (walletMatch) {
-      const wallet = walletMatch[1].trim();
-      if (!validateAddress(wallet)) {
-        throw new ValidationError(`Invalid wallet address: ${wallet}`);
-      }
-      parsed.wallet = wallet;
-      parsed.raw.matches.wallet = true;
-    }
-    const chainMatch = text.match(/\[chain\]([\s\S]*?)\[\/chain\]/);
-    if (chainMatch) {
-      const chain = chainMatch[1].trim();
-      parsed.chain = normalizeChainName(chain);
-      parsed.raw.matches.chain = true;
-    }
-    const contractMatch = text.match(/\[contract\]([\s\S]*?)\[\/contract\]/);
-    if (contractMatch) {
-      const contract = contractMatch[1].trim();
-      if (!validateAddress(contract)) {
-        throw new ValidationError(`Invalid contract address: ${contract}`);
-      }
-      parsed.contract = contract;
-      parsed.raw.matches.contract = true;
-    }
-    const tokenMatch = text.match(/\[token\]([\s\S]*?)\[\/token\]/);
-    if (tokenMatch) {
-      const token = tokenMatch[1].trim();
-      if (!validateTokenId(token)) {
-        throw new ValidationError(`Invalid token ID: ${token}`);
-      }
-      parsed.token = token;
-      parsed.raw.matches.token = true;
-    }
-    const txMatch = text.match(/\[txHash\]([\s\S]*?)\[\/txHash\]/);
-    if (txMatch) {
-      const txHash = txMatch[1].trim();
-      if (!validateTxHash(txHash)) {
-        throw new ValidationError(`Invalid transaction hash: ${txHash}`);
-      }
-      parsed.txHash = txHash;
-      parsed.raw.matches.txHash = true;
-    }
-    const blockMatch = text.match(/\[block\]([\s\S]*?)\[\/block\]/);
-    if (blockMatch) {
-      const block = blockMatch[1].trim();
-      if (!validateBlockNumber(block)) {
-        throw new ValidationError(`Invalid block number: ${block}`);
-      }
-      parsed.block = block;
-      parsed.raw.matches.block = true;
-    }
-    const block2Match = text.match(/\[block2\]([\s\S]*?)\[\/block2\]/);
-    if (block2Match) {
-      const block2 = block2Match[1].trim();
-      if (!validateBlockNumber(block2)) {
-        throw new ValidationError(`Invalid block number: ${block2}`);
-      }
-      parsed.block2 = block2;
-      parsed.raw.matches.block2 = true;
-    }
-    const fromTimestampMatch = text.match(/\[fromtimestamp\]([\s\S]*?)\[\/fromtimestamp\]/);
-    if (fromTimestampMatch) {
-      const timestamp = fromTimestampMatch[1].trim();
-      if (!validateTimestamp(timestamp)) {
-        throw new ValidationError(`Invalid from timestamp: ${timestamp}`);
-      }
-      parsed.fromTimestamp = parseInt(timestamp, 10);
-      parsed.raw.matches.fromTimestamp = true;
-    }
-    const toTimestampMatch = text.match(/\[totimestamp\]([\s\S]*?)\[\/totimestamp\]/);
-    if (toTimestampMatch) {
-      const timestamp = toTimestampMatch[1].trim();
-      if (!validateTimestamp(timestamp)) {
-        throw new ValidationError(`Invalid to timestamp: ${timestamp}`);
-      }
-      parsed.toTimestamp = parseInt(timestamp, 10);
-      parsed.raw.matches.toTimestamp = true;
-    }
-    return parsed;
-  } catch (error) {
-    elizaLogger.error("API content parsing failed", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    throw error;
-  }
-}
-function validateRequiredFields(parsed, required) {
-  const missing = required.filter((field) => !parsed.raw.matches[field]);
-  if (missing.length > 0) {
-    throw new ValidationError(
-      `Missing required fields: ${missing.join(", ")}. Please provide them in the format [field]value[/field]`
-    );
-  }
-}
-
-// src/actions/actionGetTokenHoldersCount.ts
-var config = getConfig();
-var GRANULAR_LOG = config.ANKR_GRANULAR_LOG;
-var logGranular = (message, data) => {
-  if (GRANULAR_LOG) {
-    elizaLogger2.debug(`[GetTokenHoldersCount] ${message}`, data);
-    console.log(`[GetTokenHoldersCount] ${message}`, data ? JSON.stringify(data, null, 2) : "");
-  }
-};
-var actionGetTokenHoldersCount = {
-  name: "GET_TOKEN_HOLDERS_COUNT_ANKR",
-  similes: ["COUNT_HOLDERS", "TOTAL_HOLDERS", "HOLDERS_COUNT", "NUMBER_OF_HOLDERS"],
-  description: "Get the total number of holders and historical data for a specific token.",
-  // Fix the example data to match the interface
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "How many holders does [contract]0xdAC17F958D2ee523a2206206994597C13D831ec7[/contract] have? [chain]eth[/chain]",
-        filters: {
-          blockchain: "eth",
-          contractAddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-        }
-      }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Token Holders Count on ETH:\n\nCurrent Holders: 500,000\n\nHistorical Data:\n1. 1/24/2024\n   Holders: 500,000\n   Total Amount: 1,000,000\n\nSync Status: completed (0s)",
-        success: true,
-        data: {
-          blockchain: "eth",
-          contractAddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-          tokenDecimals: 18,
-          holderCountHistory: [
-            {
-              holderCount: 5e5,
-              totalAmount: "1000000",
-              totalAmountRawInteger: "1000000000000000000000000",
-              lastUpdatedAt: "2024-01-24T10:30:15Z"
-            }
-          ],
-          latestHoldersCount: 5e5,
-          syncStatus: {
-            timestamp: 1706093415,
-            lag: "0s",
-            status: "completed"
-          }
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
-  validate: async (_runtime, message) => {
-    var _a2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TOKEN_HOLDERS_COUNT_ANKR") {
-      return true;
-    }
-    logGranular("Validating GET_TOKEN_HOLDERS_COUNT_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      const parsedContent = parseAPIContent(content.text);
-      if (!parsedContent.chain || !parsedContent.contract) {
-        throw new ValidationError("Blockchain and contract address are required");
-      }
-      logGranular("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+// src/ankr/blockchains.ts
+var Blockchains = /* @__PURE__ */ ((Blockchains2) => {
+  Blockchains2["ARBITRUM"] = "arbitrum";
+  Blockchains2["AVALANCHE"] = "avalanche";
+  Blockchains2["BASE"] = "base";
+  Blockchains2["BSC"] = "bsc";
+  Blockchains2["ETH"] = "eth";
+  Blockchains2["FANTOM"] = "fantom";
+  Blockchains2["FLARE"] = "flare";
+  Blockchains2["GNOSIS"] = "gnosis";
+  Blockchains2["LINEA"] = "linea";
+  Blockchains2["OPTIMISM"] = "optimism";
+  Blockchains2["POLYGON"] = "polygon";
+  Blockchains2["POLYGON_ZKEVM"] = "polygon_zkevm";
+  Blockchains2["ROLLUX"] = "rollux";
+  Blockchains2["SCROLL"] = "scroll";
+  Blockchains2["SYSCOIN"] = "syscoin";
+  Blockchains2["TELOS"] = "telos";
+  Blockchains2["XAI"] = "xai";
+  Blockchains2["XLAYER"] = "xlayer";
+  Blockchains2["STORY_MAINNET"] = "story_mainnet";
+  Blockchains2["AVALANCHE_FUJI"] = "avalanche_fuji";
+  Blockchains2["BASE_SEPOLIA"] = "base_sepolia";
+  Blockchains2["ETH_HOLESKY"] = "eth_holesky";
+  Blockchains2["ETH_SEPOLIA"] = "eth_sepolia";
+  Blockchains2["OPTIMISM_TESTNET"] = "optimism_testnet";
+  Blockchains2["POLYGON_AMOY"] = "polygon_amoy";
+  Blockchains2["STORY_TESTNET"] = "story_testnet";
+  return Blockchains2;
+})(Blockchains || {});
+var blockchains = Object.values(Blockchains);
+var blockchainInfoMap = {
+  // Mainnets
+  ["arbitrum" /* ARBITRUM */]: { tag: "arbitrum" /* ARBITRUM */, fullName: "Arbitrum" },
+  ["avalanche" /* AVALANCHE */]: {
+    tag: "avalanche" /* AVALANCHE */,
+    fullName: "Avalanche"
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d;
-    logGranular("Executing GET_TOKEN_HOLDERS_COUNT_ANKR action");
+  ["base" /* BASE */]: { tag: "base" /* BASE */, fullName: "Base" },
+  ["bsc" /* BSC */]: { tag: "bsc" /* BSC */, fullName: "Binance Smart Chain" },
+  ["eth" /* ETH */]: { tag: "eth" /* ETH */, fullName: "Ethereum" },
+  ["fantom" /* FANTOM */]: { tag: "fantom" /* FANTOM */, fullName: "Fantom" },
+  ["flare" /* FLARE */]: { tag: "flare" /* FLARE */, fullName: "Flare" },
+  ["gnosis" /* GNOSIS */]: { tag: "gnosis" /* GNOSIS */, fullName: "Gnosis" },
+  ["linea" /* LINEA */]: { tag: "linea" /* LINEA */, fullName: "Linea" },
+  ["optimism" /* OPTIMISM */]: { tag: "optimism" /* OPTIMISM */, fullName: "Optimism" },
+  ["polygon" /* POLYGON */]: { tag: "polygon" /* POLYGON */, fullName: "Polygon" },
+  ["polygon_zkevm" /* POLYGON_ZKEVM */]: {
+    tag: "polygon_zkevm" /* POLYGON_ZKEVM */,
+    fullName: "Polygon zkEVM"
+  },
+  ["rollux" /* ROLLUX */]: { tag: "rollux" /* ROLLUX */, fullName: "Rollux" },
+  ["scroll" /* SCROLL */]: { tag: "scroll" /* SCROLL */, fullName: "Scroll" },
+  ["syscoin" /* SYSCOIN */]: { tag: "syscoin" /* SYSCOIN */, fullName: "Syscoin" },
+  ["telos" /* TELOS */]: { tag: "telos" /* TELOS */, fullName: "Telos" },
+  ["xai" /* XAI */]: { tag: "xai" /* XAI */, fullName: "Xai" },
+  ["xlayer" /* XLAYER */]: { tag: "xlayer" /* XLAYER */, fullName: "XLayer" },
+  ["story_mainnet" /* STORY_MAINNET */]: {
+    tag: "story_mainnet" /* STORY_MAINNET */,
+    fullName: "Story"
+  },
+  // Testnets
+  ["avalanche_fuji" /* AVALANCHE_FUJI */]: {
+    tag: "avalanche_fuji" /* AVALANCHE_FUJI */,
+    fullName: "Avalanche Fuji",
+    isTestnet: true
+  },
+  ["base_sepolia" /* BASE_SEPOLIA */]: {
+    tag: "base_sepolia" /* BASE_SEPOLIA */,
+    fullName: "Base Sepolia",
+    isTestnet: true
+  },
+  ["eth_holesky" /* ETH_HOLESKY */]: {
+    tag: "eth_holesky" /* ETH_HOLESKY */,
+    fullName: "Ethereum Holesky",
+    isTestnet: true
+  },
+  ["eth_sepolia" /* ETH_SEPOLIA */]: {
+    tag: "eth_sepolia" /* ETH_SEPOLIA */,
+    fullName: "Ethereum Sepolia",
+    isTestnet: true
+  },
+  ["optimism_testnet" /* OPTIMISM_TESTNET */]: {
+    tag: "optimism_testnet" /* OPTIMISM_TESTNET */,
+    fullName: "Optimism Testnet",
+    isTestnet: true
+  },
+  ["polygon_amoy" /* POLYGON_AMOY */]: {
+    tag: "polygon_amoy" /* POLYGON_AMOY */,
+    fullName: "Polygon Amoy",
+    isTestnet: true
+  },
+  ["story_testnet" /* STORY_TESTNET */]: {
+    tag: "story_testnet" /* STORY_TESTNET */,
+    fullName: "Story Testnet",
+    isTestnet: true
+  }
+};
+
+// src/ankr/handlerFactory.ts
+import {
+  composeContext,
+  elizaLogger,
+  generateObject,
+  ModelClass
+} from "@elizaos/core";
+import { AnkrProvider } from "@ankr.com/ankr.js";
+var createStandardTemplate = (schema) => {
+  var _a2;
+  const schemaDescription = schema.description || "";
+  const shape = ((_a2 = schema._def) == null ? void 0 : _a2.shape) || {};
+  const propertyDescriptions = Object.entries(shape || {}).map(([key, value]) => {
+    const desc = (value == null ? void 0 : value.description) || "";
+    return `- ${key}: ${desc}`;
+  }).join("\n");
+  const hasBlockchains = (shape == null ? void 0 : shape.blockchain) !== void 0;
+  const blockchainsSection = hasBlockchains ? `
+## Supported Blockchains
+
+### Mainnets
+${Object.values(
+    blockchainInfoMap
+  ).filter((info) => !info.isTestnet).map((info) => `- ${info.fullName} (${info.tag})`).join("\n")}
+
+### Testnets
+${Object.values(blockchainInfoMap).filter((info) => info.isTestnet).map((info) => `- ${info.fullName} (${info.tag})`).join("\n")}` : "";
+  return `Respond with a JSON markdown block containing only the extracted values
+- Skip any values that cannot be determined.
+- If no specific blockchain is mentioned, assume the user wants to check all supported blockchains.
+- When a blockchain is mentioned by its full name (e.g., "Ethereum"), use the corresponding tag (e.g., "eth").
+
+${schemaDescription ? `## Schema Description
+
+${schemaDescription}
+` : ""}
+${propertyDescriptions ? `## Properties
+
+${propertyDescriptions}
+` : ""}
+${blockchainsSection}
+
+## Recent Messages
+
+<recentMessages>
+{{recentMessages}}
+</recentMessages>
+
+Given the recent messages, extract the following information according to the schema.
+
+Respond with a JSON markdown block containing only the extracted values.`;
+};
+function createAnkrHandler({
+  methodName,
+  requestValidator: validator,
+  methodHandler: apiMethod,
+  responseFormatter: formatter,
+  requestSchema: schema
+}) {
+  return async (runtime, message, state, options = {}, callback) => {
+    elizaLogger.info(`[${methodName}] executing`);
     try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasContract: !!parsedContent.contract,
-        hasChain: !!parsedContent.chain,
-        contract: parsedContent.contract,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["contract", "chain"]);
-      const requestParams = {
-        blockchain: parsedContent.chain,
-        contractAddress: parsedContent.contract,
-        pageSize: 10
-      };
-      try {
-        const response = await axios.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getTokenHoldersCount",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
+      elizaLogger.debug(
+        { content: message.content },
+        `[${methodName}] message content`
+      );
+      const config = await validateAnkrConfig(runtime);
+      const apikey = config.ANKR_API_KEY;
+      if (!apikey) {
+        throw new ConfigurationError(
+          "ANKR_API_KEY not found in environment variables"
         );
-        logGranular("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
+      }
+      const provider = new AnkrProvider(
+        `https://rpc.ankr.com/multichain/${apikey}`
+      );
+      if (!state) {
+        state = await runtime.composeState(message);
+      } else {
+        state = await runtime.updateRecentMessageState(state);
+      }
+      const template = createStandardTemplate(schema);
+      const context = composeContext({
+        state,
+        template
+      });
+      elizaLogger.debug(`[${methodName}] composed context`, {
+        context
+      });
+      const content = await generateObject({
+        schema,
+        context,
+        modelClass: ModelClass.SMALL,
+        runtime
+      });
+      const request = content.object;
+      elizaLogger.info(`[${methodName}] extracted request parameters`, {
+        request
+      });
+      if (!validator(request)) {
+        throw new ValidationError("Invalid request");
+      }
+      elizaLogger.debug(`[${methodName}] API request parameters`, {
+        params: request
+      });
+      try {
+        const response = await apiMethod(provider, request);
+        elizaLogger.debug(`[${methodName}] received response from Ankr API`, {
+          data: response
         });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const result = response.data.result;
-        let formattedText = `Token Holders Count on ${((_c = parsedContent.chain) == null ? void 0 : _c.toUpperCase()) || "UNKNOWN"}:
-
-`;
-        formattedText += `Current Holders: ${result.latestHoldersCount.toLocaleString()}
-
-`;
-        formattedText += "Historical Data:\n";
-        result.holderCountHistory.forEach((history, index) => {
-          const date = new Date(history.lastUpdatedAt).toLocaleDateString();
-          formattedText += `
-${index + 1}. ${date}
-   Holders: ${history.holderCount.toLocaleString()}
-   Total Amount: ${Number(history.totalAmount).toLocaleString()}`;
-        });
-        if (result.syncStatus) {
-          formattedText += `
-
-Sync Status: ${result.syncStatus.status} (${result.syncStatus.lag})`;
-        }
-        if (callback) {
-          logGranular("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
+        const formattedResponse = formatter(request, response);
+        callback == null ? void 0 : callback({
+          text: formattedResponse,
+          content: {
             success: true,
-            data: result
-          });
-        }
+            request,
+            response
+          }
+        });
         return true;
       } catch (error) {
-        logGranular("API request failed", { error });
-        if (axios.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch token holders count: ${error.message}`,
-            (_d = error.response) == null ? void 0 : _d.status
-          );
-        }
-        throw new APIError("Failed to fetch token holders count");
+        elizaLogger.error("API request failed", { error });
+        throw new APIError(`Failed to fetch ${methodName} data`);
       }
     } catch (error) {
-      logGranular("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting token holders count: ${errorMessage}`,
-          success: false
-        });
-      }
+      elizaLogger.error("Handler execution failed", {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      callback == null ? void 0 : callback({
+        text: `Error in ${methodName}: ${errorMessage}`,
+        content: {
+          error
+        }
+      });
       if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
         throw error;
       }
-      throw new APIError("Failed to execute GET_TOKEN_HOLDERS_COUNT_ANKR action");
+      throw new APIError(
+        `Failed to execute ${methodName} action: ${error}`,
+        error
+      );
     }
+  };
+}
+
+// src/actions/actionGetTokenHoldersCount.ts
+var getTokenHoldersCountRequestSchema = z2.object({
+  blockchain: z2.nativeEnum(Blockchains).describe("The blockchain to get token holders count for"),
+  contractAddress: z2.string().startsWith("0x").describe("The contract address of the token")
+});
+var validateGetTokenHoldersCountRequest = (content) => {
+  const result = getTokenHoldersCountRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetTokenHoldersCountReply = (request, response) => {
+  let formattedText = `Token Holders Count on ${request.blockchain.toUpperCase()}:
+
+`;
+  formattedText += `Current Holders: ${response.latestHoldersCount.toLocaleString()}
+
+`;
+  formattedText += "Historical Data:\n";
+  response.holderCountHistory.forEach((history, index) => {
+    const date = new Date(history.lastUpdatedAt).toLocaleDateString();
+    formattedText += `
+${index + 1}. ${date}
+   Holders: ${history.holderCount.toLocaleString()}
+   Total Amount: ${Number(history.totalAmount).toLocaleString()}`;
+  });
+  if (response.syncStatus) {
+    formattedText += `
+
+Sync Status: ${response.syncStatus.status} (${response.syncStatus.lag})`;
+  }
+  return formattedText;
+};
+var getTokenHoldersCountHandler = (provider, request) => {
+  return provider.getTokenHoldersCount({
+    blockchain: request.blockchain,
+    contractAddress: request.contractAddress
+  });
+};
+var actionGetTokenHoldersCount = {
+  name: "GET_TOKEN_HOLDERS_COUNT_ANKR",
+  similes: [
+    "COUNT_HOLDERS",
+    "TOTAL_HOLDERS",
+    "HOLDERS_COUNT",
+    "NUMBER_OF_HOLDERS"
+  ],
+  description: "Get the total number of holders and historical data for a specific token.",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "How many holders does 0xdAC17F958D2ee523a2206206994597C13D831ec7 have on eth?"
+        }
+      }
+    ]
+  ],
+  validate: async (_runtime, message) => {
+    return true;
+  },
+  handler: createAnkrHandler({
+    methodName: "GetTokenHoldersCount",
+    requestValidator: validateGetTokenHoldersCountRequest,
+    requestSchema: getTokenHoldersCountRequestSchema,
+    methodHandler: getTokenHoldersCountHandler,
+    responseFormatter: formatGetTokenHoldersCountReply
+  })
 };
 
 // src/actions/actionGetTokenPrice.ts
-import { elizaLogger as elizaLogger3 } from "@elizaos/core";
-import axios2 from "axios";
-var config2 = getConfig();
-var GRANULAR_LOG2 = config2.ANKR_GRANULAR_LOG;
-var logGranular2 = (message, data) => {
-  if (GRANULAR_LOG2) {
-    elizaLogger3.debug(`[GetTokenPrice] ${message}`, data);
-    console.log(`[GetTokenPrice] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z3 } from "zod";
+var getTokenPriceRequestSchema = z3.object({
+  blockchain: z3.nativeEnum(Blockchains).describe("The blockchain to check the token price on"),
+  contractAddress: z3.string().refine((val) => !val || val.startsWith("0x"), {
+    message: "Contract address must either be empty or start with '0x'"
+  }).optional().describe(
+    "The contract address of the token to check the price of. Leave empty for native token."
+  )
+});
+var validateGetTokenPriceRequest = (content) => {
+  const result = getTokenPriceRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetTokenPriceReply = (request, response) => {
+  const price = Number(response.usdPrice).toFixed(5);
+  const contractDisplay = response.contractAddress ? `${response.contractAddress.slice(
+    0,
+    6
+  )}...${response.contractAddress.slice(-4)}` : "Native Token";
+  return `Current token price on ${request.blockchain}:
+
+Price: $${price} USD
+Contract: ${contractDisplay}
+Sync Status: ${response.syncStatus.status} (lag: ${response.syncStatus.lag})`;
+};
+var getTokenPriceHandler = async (provider, request) => {
+  return provider.getTokenPrice({
+    blockchain: request.blockchain,
+    contractAddress: request.contractAddress
+  });
 };
 var actionGetTokenPrice = {
   name: "GET_TOKEN_PRICE_ANKR",
   similes: ["CHECK_PRICE", "TOKEN_PRICE", "CRYPTO_PRICE", "PRICE_CHECK"],
-  description: "Get the current USD price for any token on eth blockchain.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "What's the current price of [contract]0x8290333cef9e6d528dd5618fb97a76f268f3edd4[/contract] token [chain]eth[/chain]",
-        filters: {
-          blockchain: "eth",
-          contractAddress: "0x8290333cef9e6d528dd5618fb97a76f268f3edd4"
+  description: "Get the current USD price for any token on supported blockchains.",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "What's the current price of ETH?"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Current token price on eth:\n\nPrice: $0.03024 USD\nContract: 0x8290...3edd4\nSync Status: synced (lag: -8s)",
-        success: true,
-        data: {
-          blockchain: "eth",
-          contractAddress: "0x8290333cef9e6d528dd5618fb97a76f268f3edd4",
-          usdPrice: "0.030239944206509556547",
-          syncStatus: {
-            timestamp: 1737760907,
-            lag: "-8s",
-            status: "synced"
-          }
+    ],
+    [
+      {
+        user: "user",
+        content: {
+          text: "What's the current price of 0x8290333cef9e6d528dd5618fb97a76f268f3edd4 token on eth?"
         }
       }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TOKEN_PRICE_ANKR") {
-      return true;
-    }
-    logGranular2("Validating GET_TOKEN_PRICE_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      const parsedContent = parseAPIContent(content.text);
-      if (!parsedContent.chain || !parsedContent.contract) {
-        throw new ValidationError("Blockchain and contract address are required");
-      }
-      logGranular2("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular2("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c;
-    logGranular2("Executing GET_TOKEN_PRICE_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      validateRequiredFields(parsedContent, ["contract", "chain"]);
-      try {
-        const response = await axios2.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getTokenPrice",
-            params: {
-              blockchain: parsedContent.chain,
-              contractAddress: parsedContent.contract
-            },
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular2("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const result = response.data.result;
-        const price = Number(result.usdPrice).toFixed(5);
-        const formattedText = `Current token price on ${parsedContent.chain}:
-
-Price: $${price} USD
-Contract: ${result.contractAddress.slice(0, 6)}...${result.contractAddress.slice(-4)}
-Sync Status: ${result.syncStatus.status} (lag: ${result.syncStatus.lag})`;
-        if (callback) {
-          callback({
-            text: formattedText,
-            success: true,
-            data: result
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular2("API request failed", { error });
-        if (axios2.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch token price: ${error.message}`,
-            (_c = error.response) == null ? void 0 : _c.status
-          );
-        }
-        throw new APIError("Failed to fetch token price");
-      }
-    } catch (error) {
-      logGranular2("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting token price: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_TOKEN_PRICE_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetTokenPrice",
+    requestValidator: validateGetTokenPriceRequest,
+    requestSchema: getTokenPriceRequestSchema,
+    methodHandler: getTokenPriceHandler,
+    responseFormatter: formatGetTokenPriceReply
+  })
 };
 
 // src/actions/actionGetTokenTransfers.ts
-import { elizaLogger as elizaLogger4 } from "@elizaos/core";
-import axios3 from "axios";
-var config3 = getConfig();
-var GRANULAR_LOG3 = config3.ANKR_GRANULAR_LOG;
-var logGranular3 = (message, data) => {
-  if (GRANULAR_LOG3) {
-    elizaLogger4.debug(`[GetTokenTransfers] ${message}`, data);
-    console.log(`[GetTokenTransfers] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z4 } from "zod";
+var getTokenTransfersRequestSchema = z4.object({
+  blockchain: z4.nativeEnum(Blockchains).describe("The blockchain to get token transfers from"),
+  address: z4.string().startsWith("0x").describe("The wallet address to get token transfers for"),
+  contractAddress: z4.string().refine((val) => !val || val.startsWith("0x"), {
+    message: "Contract address must be empty or start with 0x"
+  }).optional().describe("The token contract address (optional)"),
+  fromTimestamp: z4.number().optional().describe("Start timestamp for the transfers (optional)"),
+  toTimestamp: z4.number().optional().describe("End timestamp for the transfers (optional)"),
+  descOrder: z4.boolean().default(true).describe("Whether to sort transfers in descending order")
+});
+var validateGetTokenTransfersRequest = (content) => {
+  const result = getTokenTransfersRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetTokenTransfersReply = (request, response) => {
+  const { transfers, syncStatus } = response;
+  let formattedText = `Token transfers for ${request.address} on ${request.blockchain}:
+
+`;
+  if (transfers.length === 0) {
+    formattedText += "No token transfers found";
+    return formattedText;
+  }
+  transfers.forEach((transfer, index) => {
+    const date = new Date(transfer.timestamp * 1e3).toLocaleString();
+    const value = Number(transfer.value);
+    formattedText += `${index + 1}. ${transfer.tokenName} (${transfer.tokenSymbol})
+`;
+    if (transfer.fromAddress === request.address) {
+      formattedText += `   Sent: ${value} ${transfer.tokenSymbol}
+`;
+      formattedText += `   To: ${transfer.toAddress.slice(
+        0,
+        6
+      )}...${transfer.toAddress.slice(-4)}
+`;
+    } else {
+      formattedText += `   Received: ${value} ${transfer.tokenSymbol}
+`;
+      formattedText += `   From: ${transfer.fromAddress.slice(
+        0,
+        6
+      )}...${transfer.fromAddress.slice(-4)}
+`;
+    }
+    formattedText += `   Contract: ${transfer.contractAddress.slice(
+      0,
+      6
+    )}...${transfer.contractAddress.slice(-4)}
+`;
+    formattedText += `   Tx Hash: ${transfer.transactionHash.slice(
+      0,
+      6
+    )}...${transfer.transactionHash.slice(-4)}
+`;
+    formattedText += `   Time: ${date}
+
+`;
+  });
+  if (syncStatus) {
+    formattedText += `Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})`;
+  }
+  return formattedText;
+};
+var getTokenTransfersHandler = async (provider, request) => {
+  const params = {
+    blockchain: request.blockchain,
+    address: [request.address],
+    descOrder: request.descOrder,
+    pageSize: 10
+  };
+  if (request.fromTimestamp) {
+    params.fromTimestamp = request.fromTimestamp;
+  }
+  if (request.toTimestamp) {
+    params.toTimestamp = request.toTimestamp;
+  }
+  return provider.getTokenTransfers(params);
 };
 var actionGetTokenTransfers = {
   name: "GET_TOKEN_TRANSFERS_ANKR",
-  similes: ["LIST_TRANSFERS", "SHOW_TRANSFERS", "TOKEN_MOVEMENTS", "TRANSFER_HISTORY"],
-  description: "Get transfer history for a specific token or address on eth.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me recent contract [contract]0xff970a61a04b1ca14834a43f5de4533ebddb5cc8[/contract] transfers [chain]eth[/chain] from [fromtimestamp]1655197483[/fromtimestamp] to [totimestamp]1656061483[/totimestamp]",
-        filters: {
-          blockchain: "eth",
-          contractAddress: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
-          pageSize: 5,
-          fromTimestamp: 1655197483,
-          toTimestamp: 1656061483
+  similes: [
+    "FETCH_TOKEN_TRANSFERS",
+    "SHOW_TOKEN_TRANSFERS",
+    "VIEW_TOKEN_TRANSFERS",
+    "LIST_TOKEN_TRANSFERS"
+  ],
+  description: "Retrieve token transfer history for a specific address on the blockchain",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me token transfers for address 0xd8da6bf26964af9d7eed9e03e53415d37aa96045 on eth"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the 5 most recent USDC transfers on eth:\n\n1. Transfer\n   From: 0x1234...5678\n   To: 0xabcd...ef01\n   Amount: 10,000 USDC\n   Time: 2024-01-24 10:30:15\n\n2. Transfer\n   From: 0x9876...5432\n   To: 0xfedc...ba98\n   Amount: 5,000 USDC\n   Time: 2024-01-24 10:29:45",
-        success: true,
-        data: {
-          transfers: [{
-            fromAddress: "0x1234567890123456789012345678901234567890",
-            toAddress: "0xabcdef0123456789abcdef0123456789abcdef01",
-            contractAddress: "0xff970a61a04b1ca14834a43f5de4533ebddb5cc8",
-            value: "10000.0",
-            valueRawInteger: "10000000000000000000000",
-            blockchain: "eth",
-            tokenName: "USD Coin",
-            tokenSymbol: "USDC",
-            tokenDecimals: 6,
-            thumbnail: "",
-            transactionHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-            blockHeight: 123456789,
-            timestamp: 1706093415
-          }],
-          syncStatus: {
-            timestamp: 1706093415,
-            lag: "0s",
-            status: "completed"
-          }
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TOKEN_TRANSFERS_ANKR") {
-      return true;
-    }
-    logGranular3("Validating GET_TOKEN_TRANSFERS_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      const parsedContent = parseAPIContent(content.text);
-      if (!parsedContent.chain || !parsedContent.contract) {
-        throw new ValidationError("Blockchain and contract address are required");
-      }
-      if (parsedContent.fromTimestamp && parsedContent.toTimestamp) {
-        if (parsedContent.fromTimestamp > parsedContent.toTimestamp) {
-          throw new ValidationError("From timestamp must be less than to timestamp");
-        }
-      }
-      logGranular3("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular3("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d;
-    logGranular3("Executing GET_TOKEN_TRANSFERS_ANKR action");
-    try {
-      const messageContent = message.content;
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_a2 = messageContent.text) == null ? void 0 : _a2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasContract: !!parsedContent.contract,
-        hasChain: !!parsedContent.chain,
-        hasFromTimestamp: !!parsedContent.fromTimestamp,
-        hasToTimestamp: !!parsedContent.toTimestamp,
-        contract: parsedContent.contract,
-        chain: parsedContent.chain,
-        fromTimestamp: parsedContent.fromTimestamp,
-        toTimestamp: parsedContent.toTimestamp
-      });
-      validateRequiredFields(parsedContent, ["contract", "chain", "fromTimestamp", "toTimestamp"]);
-      try {
-        const response = await axios3.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getTokenTransfers",
-            params: {
-              address: parsedContent.contract,
-              blockchain: [parsedContent.chain],
-              fromTimestamp: parsedContent.fromTimestamp,
-              toTimestamp: parsedContent.toTimestamp,
-              pageSize: ((_b2 = messageContent.filters) == null ? void 0 : _b2.pageSize) || 10
-            },
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular3("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const result = response.data.result;
-        let formattedText = `Token Transfers on ${((_c = parsedContent.chain) == null ? void 0 : _c.toUpperCase()) || "UNKNOWN"}:
-
-`;
-        result.transfers.forEach((transfer, index) => {
-          const date = new Date(transfer.timestamp * 1e3).toLocaleString();
-          const value = Number(transfer.value).toLocaleString();
-          formattedText += `${index + 1}. Transfer
-`;
-          formattedText += `   From: ${transfer.fromAddress.slice(0, 6)}...${transfer.fromAddress.slice(-4)}
-`;
-          formattedText += `   To: ${transfer.toAddress.slice(0, 6)}...${transfer.toAddress.slice(-4)}
-`;
-          formattedText += `   Amount: ${value} ${transfer.tokenSymbol}
-`;
-          formattedText += `   Token: ${transfer.tokenName}
-`;
-          formattedText += `   Time: ${date}
-
-`;
-        });
-        if (result.syncStatus) {
-          formattedText += `
-Sync Status: ${result.syncStatus.status} (lag: ${result.syncStatus.lag})
-`;
-        }
-        if (callback) {
-          logGranular3("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              transfers: result.transfers,
-              nextPageToken: result.nextPageToken
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular3("API request failed", { error });
-        if (axios3.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch token transfers: ${error.message}`,
-            (_d = error.response) == null ? void 0 : _d.status
-          );
-        }
-        throw new APIError("Failed to fetch token transfers");
-      }
-    } catch (error) {
-      logGranular3("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting token transfers: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_TOKEN_TRANSFERS_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetTokenTransfers",
+    requestValidator: validateGetTokenTransfersRequest,
+    requestSchema: getTokenTransfersRequestSchema,
+    methodHandler: getTokenTransfersHandler,
+    responseFormatter: formatGetTokenTransfersReply
+  })
 };
 
 // src/actions/actionGetAccountBalance.ts
-import { elizaLogger as elizaLogger5 } from "@elizaos/core";
-import axios4 from "axios";
-var config4 = getConfig();
-var GRANULAR_LOG4 = config4.ANKR_GRANULAR_LOG;
-var logGranular4 = (message, data) => {
-  if (GRANULAR_LOG4) {
-    elizaLogger5.debug(`[GetAccountBalance] ${message}`, data);
-    console.log(`[GetAccountBalance] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z5 } from "zod";
+var getAccountBalanceRequestSchema = z5.object({
+  blockchain: z5.union([z5.nativeEnum(Blockchains), z5.array(z5.nativeEnum(Blockchains))]).optional().describe("The blockchain(s) to check the balance on"),
+  walletAddress: z5.string().startsWith("0x").describe(
+    "The EVM-like wallet address to check the balance of, e.g. 0x1234567890123456789012345678901234567890"
+  )
+});
+var validateGetAccountBalanceRequest = (content) => {
+  const result = getAccountBalanceRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetAccountBalanceReply = (request, response) => {
+  let formattedText = `Here are the balances for wallet ${request.walletAddress}:
+
+`;
+  if (response.assets.length === 0) {
+    formattedText += "No balances found";
+    return formattedText;
+  }
+  response.assets.forEach((balance, index) => {
+    formattedText += `${index + 1}. ${balance.tokenName} (${balance.tokenType})
+`;
+    formattedText += `   Balance: ${balance.balance} ${balance.tokenSymbol}
+`;
+    if (balance.contractAddress) {
+      formattedText += `   Contract: ${balance.contractAddress}
+`;
+    }
+    formattedText += `   USD Value: $${Number.parseFloat(
+      balance.balanceUsd
+    ).toFixed(2)}
+
+`;
+  });
+  return formattedText;
+};
+var getAccountBalanceHandler = (provider, request) => {
+  return provider.getAccountBalance({
+    blockchain: request.blockchain,
+    walletAddress: request.walletAddress,
+    onlyWhitelisted: true,
+    pageSize: 50
+  });
 };
 var actionGetAccountBalance = {
   name: "GET_ACCOUNT_BALANCE_ANKR",
-  similes: ["CHECK_BALANCE", "SHOW_BALANCE", "VIEW_BALANCE", "GET_WALLET_BALANCE"],
+  similes: [
+    "CHECK_BALANCE",
+    "SHOW_BALANCE",
+    "VIEW_BALANCE",
+    "GET_WALLET_BALANCE"
+  ],
   description: "Retrieve account balance information across multiple blockchains.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me the balance for wallet [wallet]0x1234567890123456789012345678901234567890[/wallet] on [chain]eth[/chain]",
-        filters: {
-          blockchain: ["eth"],
-          walletAddress: "0x1234567890123456789012345678901234567890"
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me the balance for wallet 0x1234567890123456789012345678901234567890 on eth"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the balances for wallet 0x1234...7890:\n\n1. ETH (Native)\n   Balance: 1.5 ETH\n   USD Value: $3,000.00\n\n2. USDC (ERC20)\n   Balance: 1000 USDC\n   Contract: 0xa0b8...c4d5\n   USD Value: $1,000.00",
-        success: true,
-        data: {
-          address: "0x1234567890123456789012345678901234567890",
-          balances: [{
-            blockchain: "eth",
-            tokenName: "Ethereum",
-            symbol: "ETH",
-            balance: "1.5",
-            balanceRawInteger: "1500000000000000000",
-            balanceUsd: "3000.00",
-            tokenDecimals: 18,
-            tokenType: "NATIVE"
-          }, {
-            blockchain: "eth",
-            tokenName: "USD Coin",
-            symbol: "USDC",
-            balance: "1000",
-            balanceRawInteger: "1000000000",
-            balanceUsd: "1000.00",
-            tokenDecimals: 6,
-            tokenType: "ERC20",
-            contractAddress: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"
-          }]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2, _c;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_ACCOUNT_BALANCE_ANKR") {
-      return true;
-    }
-    logGranular4("Validating GET_ACCOUNT_BALANCE_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.walletAddress)) {
-        throw new ValidationError("Wallet address is required");
-      }
-      if (((_c = content.filters) == null ? void 0 : _c.blockchain) && !Array.isArray(content.filters.blockchain)) {
-        throw new ValidationError("Blockchain must be an array");
-      }
-      logGranular4("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular4("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c;
-    logGranular4("Executing GET_ACCOUNT_BALANCE_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      console.log("Debug - Message content details:", {
-        hasText: !!(messageContent == null ? void 0 : messageContent.text),
-        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
-        textContent: messageContent == null ? void 0 : messageContent.text,
-        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasWallet: !!parsedContent.wallet,
-        hasChain: !!parsedContent.chain,
-        wallet: parsedContent.wallet,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["wallet", "chain"]);
-      const requestParams = {
-        blockchain: [parsedContent.chain],
-        walletAddress: parsedContent.wallet
-      };
-      console.log("Debug - API request parameters:", {
-        params: requestParams,
-        endpoint: ANKR_ENDPOINTS.production.multichain
-      });
-      try {
-        const response = await axios4.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getAccountBalance",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular4("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const balances = response.data.result.assets;
-        const address = parsedContent.wallet;
-        let formattedText = `Here are the balances for wallet ${address == null ? void 0 : address.slice(0, 6)}...${address == null ? void 0 : address.slice(-4)}:
-
-`;
-        balances.forEach((balance, index) => {
-          formattedText += `${index + 1}. ${balance.tokenName} (${balance.tokenType})
-`;
-          formattedText += `   Balance: ${balance.balance} ${balance.tokenSymbol}
-`;
-          if (balance.contractAddress) {
-            formattedText += `   Contract: ${balance.contractAddress.slice(0, 6)}...${balance.contractAddress.slice(-4)}
-`;
-          }
-          formattedText += `   USD Value: $${Number.parseFloat(balance.balanceUsd).toFixed(2)}
-
-`;
-        });
-        if (callback) {
-          logGranular4("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              address,
-              balances
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular4("API request failed", { error });
-        if (axios4.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch balance data: ${error.message}`,
-            (_c = error.response) == null ? void 0 : _c.status
-          );
-        }
-        throw new APIError("Failed to fetch balance data");
-      }
-    } catch (error) {
-      logGranular4("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting account balance: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_ACCOUNT_BALANCE_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetAccountBalance",
+    requestValidator: validateGetAccountBalanceRequest,
+    requestSchema: getAccountBalanceRequestSchema,
+    methodHandler: getAccountBalanceHandler,
+    responseFormatter: formatGetAccountBalanceReply
+  })
 };
 
 // src/actions/actionGetTransactionsByAddress.ts
-import { elizaLogger as elizaLogger6 } from "@elizaos/core";
-import axios5 from "axios";
-var config5 = getConfig();
-var GRANULAR_LOG5 = config5.ANKR_GRANULAR_LOG;
-var logGranular5 = (message, data) => {
-  if (GRANULAR_LOG5) {
-    elizaLogger6.debug(`[GetTransactionsByAddress] ${message}`, data);
-    console.log(`[GetTransactionsByAddress] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z6 } from "zod";
+var getTransactionsByAddressRequestSchema = z6.object({
+  blockchain: z6.nativeEnum(Blockchains).describe("The blockchain to get transactions from"),
+  address: z6.string().startsWith("0x").describe("The wallet address to get transactions for"),
+  includeLogs: z6.boolean().default(true).describe("Whether to include transaction logs"),
+  descOrder: z6.boolean().default(true).describe("Whether to sort transactions in descending order")
+});
+var validateGetTransactionsByAddressRequest = (content) => {
+  const result = getTransactionsByAddressRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetTransactionsByAddressReply = (request, response) => {
+  const { transactions, syncStatus } = response;
+  let formattedText = `Transactions for ${request.address} on ${request.blockchain}:
+
+`;
+  if (transactions.length === 0) {
+    formattedText += "No transactions found";
+    return formattedText;
+  }
+  transactions.forEach((tx, index) => {
+    const date = new Date(Number(tx.timestamp) * 1e3).toLocaleString();
+    const value = Number(tx.value) / 1e18;
+    const status = tx.status === "0x1" ? "Success" : "Failed";
+    formattedText += `${index + 1}. Transaction
+`;
+    formattedText += `   Hash: ${tx.hash.slice(0, 6)}...${tx.hash.slice(-4)}
+`;
+    formattedText += `   From: ${tx.from.slice(0, 6)}...${tx.from.slice(-4)}
+`;
+    if (tx.to) {
+      formattedText += `   To: ${tx.to.slice(0, 6)}...${tx.to.slice(-4)}
+`;
+    } else if (tx.contractAddress) {
+      formattedText += `   Contract Created: ${tx.contractAddress.slice(
+        0,
+        6
+      )}...${tx.contractAddress.slice(-4)}
+`;
+    }
+    formattedText += `   Value: ${value.toFixed(4)} ${request.blockchain === "eth" ? "ETH" : "native tokens"}
+`;
+    formattedText += `   Status: ${status}
+`;
+    formattedText += `   Time: ${date}
+
+`;
+  });
+  if (syncStatus) {
+    formattedText += `Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})`;
+  }
+  return formattedText;
+};
+var getTransactionsByAddressHandler = async (provider, request) => {
+  return provider.getTransactionsByAddress({
+    blockchain: request.blockchain,
+    address: [request.address],
+    includeLogs: request.includeLogs,
+    descOrder: request.descOrder,
+    pageSize: 10
+  });
 };
 var actionGetTransactionsByAddress = {
   name: "GET_TRANSACTIONS_BY_ADDRESS_ANKR",
   similes: ["LIST_TXS", "SHOW_TXS", "VIEW_TRANSACTIONS", "GET_ADDRESS_TXS"],
   description: "Get transactions for a specific address on the blockchain",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me the latest transactions for address [contract]0xd8da6bf26964af9d7eed9e03e53415d37aa96045[/contract] [chain]eth[/chain]",
-        filters: {
-          blockchain: "eth",
-          address: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
-          pageSize: 2,
-          includeLogs: true
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me the latest transactions for address 0xd8da6bf26964af9d7eed9e03e53415d37aa96045 on eth"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the latest transactions for the address on eth:\n\n1. Transfer Out\n   To: 0x1234...5678\n   Amount: 1.5 ETH\n   Time: 2024-01-24 10:30:15\n   Status: Success\n\n2. Contract Interaction\n   Contract: 0xabcd...ef01 (Uniswap V3)\n   Method: swapExactTokensForTokens\n   Time: 2024-01-24 10:15:22\n   Status: Success",
-        success: true,
-        data: {
-          transactions: [{
-            blockchain: "eth",
-            from: "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
-            to: "0x1234567890123456789012345678901234567890",
-            hash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
-            value: "1500000000000000000",
-            gas: "21000",
-            gasPrice: "100000000",
-            gasUsed: "21000",
-            timestamp: "2024-01-24T10:30:15Z",
-            status: "1",
-            blockNumber: "123456789",
-            blockHash: "0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba"
-          }]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TRANSACTIONS_BY_ADDRESS_ANKR") {
-      return true;
-    }
-    logGranular5("Validating GET_TRANSACTIONS_BY_ADDRESS_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      const parsedContent = parseAPIContent(content.text);
-      if (!parsedContent.chain || !parsedContent.contract) {
-        throw new ValidationError("Blockchain and address are required");
-      }
-      if (((_b2 = content.filters) == null ? void 0 : _b2.pageSize) && (content.filters.pageSize < 1 || content.filters.pageSize > 100)) {
-        throw new ValidationError("Page size must be between 1 and 100");
-      }
-      logGranular5("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular5("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d, _e, _f;
-    logGranular5("Executing GET_TRANSACTIONS_BY_ADDRESS_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      console.log("Debug - Message content details:", {
-        hasText: !!(messageContent == null ? void 0 : messageContent.text),
-        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
-        textContent: messageContent == null ? void 0 : messageContent.text,
-        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasContract: !!parsedContent.contract,
-        hasChain: !!parsedContent.chain,
-        contract: parsedContent.contract,
-        chain: parsedContent.chain
-      });
-      validateRequiredFields(parsedContent, ["contract", "chain"]);
-      try {
-        const response = await axios5.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getTransactionsByAddress",
-            params: {
-              blockchain: [parsedContent.chain],
-              address: parsedContent.contract,
-              pageSize: ((_c = messageContent.filters) == null ? void 0 : _c.pageSize) || 5,
-              includeLogs: ((_d = messageContent.filters) == null ? void 0 : _d.includeLogs) || true
-            },
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const result = response.data.result;
-        let formattedText = `Transactions for ${parsedContent.contract} on ${((_e = parsedContent.chain) == null ? void 0 : _e.toUpperCase()) || "UNKNOWN"}:
-
-`;
-        result.transactions.forEach((tx, index) => {
-          const date = new Date(Number.parseInt(tx.timestamp, 16) * 1e3).toLocaleString();
-          const value = Number.parseInt(tx.value, 16) / 1e18;
-          const status = tx.status === "0x1" ? "Success" : "Failed";
-          formattedText += `${index + 1}. Transaction
-`;
-          formattedText += `   Hash: ${tx.hash.slice(0, 6)}...${tx.hash.slice(-4)}
-`;
-          formattedText += `   From: ${tx.from.slice(0, 6)}...${tx.from.slice(-4)}
-`;
-          formattedText += `   To: ${tx.to.slice(0, 6)}...${tx.to.slice(-4)}
-`;
-          formattedText += `   Value: ${value.toFixed(4)} ETH
-`;
-          formattedText += `   Status: ${status}
-`;
-          formattedText += `   Time: ${date}
-
-`;
-        });
-        if (callback) {
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              transactions: result.transactions,
-              nextPageToken: result.nextPageToken,
-              syncStatus: result.syncStatus
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular5("API request failed", { error });
-        if (axios5.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch transactions: ${error.message}`,
-            (_f = error.response) == null ? void 0 : _f.status
-          );
-        }
-        throw new APIError("Failed to fetch transactions");
-      }
-    } catch (error) {
-      logGranular5("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting transactions: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_TRANSACTIONS_BY_ADDRESS_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetTransactionsByAddress",
+    requestValidator: validateGetTransactionsByAddressRequest,
+    requestSchema: getTransactionsByAddressRequestSchema,
+    methodHandler: getTransactionsByAddressHandler,
+    responseFormatter: formatGetTransactionsByAddressReply
+  })
 };
 
 // src/actions/actionGetTransactionsByHash.ts
-import { elizaLogger as elizaLogger7 } from "@elizaos/core";
-import axios6 from "axios";
-var config6 = getConfig();
-var GRANULAR_LOG6 = config6.ANKR_GRANULAR_LOG;
-var logGranular6 = (message, data) => {
-  if (GRANULAR_LOG6) {
-    elizaLogger7.debug(`[GetTransactionsByHash] ${message}`, data);
-    console.log(`[GetTransactionsByHash] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z7 } from "zod";
+var getTransactionsByHashRequestSchema = z7.object({
+  blockchain: z7.nativeEnum(Blockchains).optional().describe("The blockchain to get transaction from (optional)"),
+  transactionHash: z7.string().startsWith("0x").describe("The transaction hash to look up"),
+  includeLogs: z7.boolean().optional().default(false).describe("Whether to include transaction logs")
+});
+var validateGetTransactionsByHashRequest = (content) => {
+  const result = getTransactionsByHashRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetTransactionsByHashReply = (request, response) => {
+  const { transactions, syncStatus } = response;
+  let formattedText = `Transaction details for hash ${request.transactionHash}:
+
+`;
+  if (transactions.length === 0) {
+    formattedText += "No transaction found with this hash";
+    return formattedText;
+  }
+  transactions.forEach((tx, index) => {
+    formattedText += `Transaction #${index + 1}:
+`;
+    formattedText += `Blockchain: ${tx.blockchain || "Unknown"}
+`;
+    formattedText += `Hash: ${tx.hash || request.transactionHash}
+`;
+    formattedText += `Block: ${tx.blockNumber}
+`;
+    formattedText += `From: ${tx.from}
+`;
+    if (tx.to) {
+      formattedText += `To: ${tx.to}
+`;
+    } else if (tx.contractAddress) {
+      formattedText += `Contract Created: ${tx.contractAddress}
+`;
+    }
+    formattedText += `Value: ${tx.value}
+`;
+    if (tx.gas) {
+      formattedText += `Gas Limit: ${tx.gas}
+`;
+    }
+    if (tx.gasUsed) {
+      formattedText += `Gas Used: ${tx.gasUsed}
+`;
+    }
+    if (tx.gasPrice) {
+      formattedText += `Gas Price: ${tx.gasPrice}
+`;
+    }
+    if (tx.status) {
+      formattedText += `Status: ${tx.status === "1" ? "Success" : "Failed"}
+`;
+    }
+    if (tx.timestamp) {
+      const date = new Date(Number(tx.timestamp) * 1e3).toLocaleString();
+      formattedText += `Time: ${date}
+`;
+    }
+    if (request.includeLogs && tx.logs && tx.logs.length > 0) {
+      formattedText += `
+Logs (${tx.logs.length}):
+`;
+      tx.logs.forEach((log, logIndex) => {
+        formattedText += `  Log #${logIndex + 1}:
+`;
+        formattedText += `    Address: ${log.address}
+`;
+        formattedText += `    Topics: ${log.topics.join(", ")}
+`;
+        if (log.event) {
+          formattedText += `    Event: ${log.event.name}
+`;
+          if (log.event.inputs && log.event.inputs.length > 0) {
+            formattedText += `    Inputs:
+`;
+            log.event.inputs.forEach((input) => {
+              formattedText += `      ${input.name} (${input.type}): ${input.valueDecoded}
+`;
+            });
+          }
+        }
+      });
+    }
+    formattedText += "\n";
+  });
+  if (syncStatus) {
+    formattedText += `Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})
+`;
+    formattedText += `Last Update: ${new Date(
+      syncStatus.timestamp * 1e3
+    ).toLocaleString()}`;
+  }
+  return formattedText;
+};
+var getTransactionsByHashHandler = async (provider, request) => {
+  return provider.getTransactionsByHash({
+    transactionHash: request.transactionHash,
+    ...request.blockchain && { blockchain: request.blockchain },
+    includeLogs: request.includeLogs,
+    decodeLogs: request.includeLogs,
+    decodeTxData: true
+  });
 };
 var actionGetTransactionsByHash = {
   name: "GET_TRANSACTIONS_BY_HASH_ANKR",
-  similes: ["GET_TX", "SHOW_TRANSACTION", "VIEW_TX", "TRANSACTION_DETAILS"],
-  description: "Get detailed information about a transaction by its hash",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me details for transaction [txHash]0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef[/txHash] [chain]eth[/chain]",
-        filters: {
-          blockchain: "eth",
-          transactionHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-          includeLogs: true
+  similes: [
+    "FETCH_TRANSACTION_BY_HASH",
+    "SHOW_TRANSACTION_BY_HASH",
+    "VIEW_TRANSACTION_BY_HASH",
+    "GET_TX_BY_HASH"
+  ],
+  description: "Retrieve transaction details by transaction hash on specified blockchain networks.",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me transaction 0x5a4bf6970980a9381e6d6c78d96ab278035bbff58c383ffe96a0a2bbc7c02a4c on eth"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the details for the transaction on eth:\n\nTransaction: 0x1234...cdef\nStatus: Success\nFrom: 0xabcd...ef01\nTo: 0x9876...5432\nValue: 1.5 ETH\nGas Used: 150,000\nGas Price: 0.1 Gwei\nBlock: 123456789\nTimestamp: 2024-01-24 10:30:15",
-        success: true,
-        data: {
-          transactions: [{
-            blockchain: "eth",
-            from: "0xabcdef0123456789abcdef0123456789abcdef01",
-            to: "0x9876543210987654321098765432109876543210",
-            hash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-            value: "1500000000000000000",
-            gas: "21000",
-            gasPrice: "100000000",
-            gasUsed: "21000",
-            timestamp: "2024-01-24T10:30:15Z",
-            status: "1",
-            blockNumber: "123456789",
-            blockHash: "0xfedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321"
-          }]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_TRANSACTIONS_BY_HASH_ANKR") {
-      return true;
-    }
-    logGranular6("Validating GET_TRANSACTIONS_BY_HASH_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      const parsedContent = parseAPIContent(content.text);
-      if (!parsedContent.chain || !parsedContent.txHash) {
-        throw new ValidationError("Blockchain and transaction hash are required");
-      }
-      if (!/^0x[a-fA-F0-9]{64}$/.test(parsedContent.txHash)) {
-        throw new ValidationError("Invalid transaction hash format");
-      }
-      logGranular6("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular6("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d;
-    logGranular6("Executing GET_TRANSACTIONS_BY_HASH_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      console.log("Debug - Message content details:", {
-        hasText: !!(messageContent == null ? void 0 : messageContent.text),
-        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
-        textContent: messageContent == null ? void 0 : messageContent.text,
-        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasTx: !!parsedContent.txHash,
-        hasChain: !!parsedContent.chain,
-        tx: parsedContent.txHash,
-        chain: parsedContent.chain
-      });
-      validateRequiredFields(parsedContent, ["txHash", "chain"]);
-      try {
-        const response = await axios6.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getTransactionsByHash",
-            params: {
-              blockchain: parsedContent.chain,
-              transactionHash: parsedContent.txHash,
-              includeLogs: true
-            },
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const transaction = response.data.result.transactions[0];
-        const timestamp = new Date(Number.parseInt(transaction.timestamp, 16) * 1e3).toLocaleString();
-        const value = Number.parseInt(transaction.value, 16) / 1e18;
-        const gasPrice = Number.parseInt(transaction.gasPrice, 16) / 1e9;
-        const gasUsed = Number.parseInt(transaction.gasUsed, 16);
-        const blockNumber = Number.parseInt(transaction.blockNumber, 16);
-        const status = transaction.status === "0x1" ? "Success" : "Failed";
-        let formattedText = `Transaction Details on ${((_c = parsedContent.chain) == null ? void 0 : _c.toUpperCase()) || "UNKNOWN"}:
-
-`;
-        formattedText += `Hash: ${transaction.hash}
-`;
-        formattedText += `Status: ${status}
-`;
-        formattedText += `From: ${transaction.from.slice(0, 6)}...${transaction.from.slice(-4)}
-`;
-        formattedText += `To: ${transaction.to.slice(0, 6)}...${transaction.to.slice(-4)}
-`;
-        formattedText += `Value: ${value.toFixed(6)} ETH
-`;
-        formattedText += `Gas Used: ${gasUsed.toLocaleString()}
-`;
-        formattedText += `Gas Price: ${gasPrice.toFixed(2)} Gwei
-`;
-        formattedText += `Block: ${blockNumber.toLocaleString()}
-`;
-        formattedText += `Time: ${timestamp}`;
-        if (callback) {
-          callback({
-            text: formattedText,
-            success: true,
-            data: response.data.result
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular6("API request failed", { error });
-        if (axios6.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch transaction: ${error.message}`,
-            (_d = error.response) == null ? void 0 : _d.status
-          );
-        }
-        throw new APIError("Failed to fetch transaction");
-      }
-    } catch (error) {
-      logGranular6("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting transaction: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_TRANSACTIONS_BY_HASH_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetTransactionsByHash",
+    requestValidator: validateGetTransactionsByHashRequest,
+    requestSchema: getTransactionsByHashRequestSchema,
+    methodHandler: getTransactionsByHashHandler,
+    responseFormatter: formatGetTransactionsByHashReply
+  })
 };
 
 // src/actions/actionGetBlockchainStats.ts
-import { elizaLogger as elizaLogger8 } from "@elizaos/core";
-import axios7 from "axios";
-var config7 = getConfig();
-var GRANULAR_LOG7 = config7.ANKR_GRANULAR_LOG;
-var logGranular7 = (message, data) => {
-  if (GRANULAR_LOG7) {
-    elizaLogger8.debug(`[GetBlockchainStats] ${message}`, data);
-    console.log(`[GetBlockchainStats] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z8 } from "zod";
+var getBlockchainStatsRequestSchema = z8.object({
+  blockchain: z8.nativeEnum(Blockchains).describe("The blockchain to get statistics for")
+});
+var validateGetBlockchainStatsRequest = (content) => {
+  const result = getBlockchainStatsRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetBlockchainStatsReply = (request, response) => {
+  const stats = response.stats[0];
+  const blockchainInfo = blockchainInfoMap[request.blockchain];
+  const blockchainName = blockchainInfo ? blockchainInfo.fullName : request.blockchain;
+  const formattedText = `Blockchain Statistics for ${blockchainName} (${request.blockchain}):
+
+Latest Block: ${stats.latestBlockNumber.toLocaleString()}
+Total Transactions: ${stats.totalTransactionsCount.toLocaleString()}
+Total Events: ${stats.totalEventsCount.toLocaleString()}
+Block Time: ${(stats.blockTimeMs / 1e3).toFixed(2)} seconds
+Native Coin Price: $${Number.parseFloat(stats.nativeCoinUsdPrice).toFixed(
+    2
+  )} USD`;
+  return formattedText;
+};
+var getBlockchainStatsHandler = async (provider, request) => {
+  return provider.getBlockchainStats({
+    blockchain: request.blockchain
+  });
 };
 var actionGetBlockchainStats = {
   name: "GET_BLOCKCHAIN_STATS_ANKR",
-  similes: ["CHAIN_STATS", "BLOCKCHAIN_INFO", "NETWORK_STATS", "CHAIN_METRICS"],
-  description: "Retrieve statistical information about specified blockchain networks.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me stats for [chain]eth[/chain] blockchain",
-        filters: {
-          blockchain: ["eth"]
+  similes: [
+    "BLOCKCHAIN_STATS",
+    "CHAIN_STATS",
+    "NETWORK_STATS",
+    "BLOCKCHAIN_METRICS"
+  ],
+  description: "Retrieve statistics about a blockchain such as latest block, transaction count, and more.",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me the stats for the Ethereum blockchain"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the current statistics for Ethereum:\n\nLatest Block: 19,234,567\nTotal Transactions: 2.5B\nActive Accounts: 245M\nTPS: 15.5\nGas Price: 25 Gwei\nMarket Cap: $250B\nTotal Value Locked: $45B",
-        success: true,
-        data: {
-          stats: [{
-            blockchain: "eth",
-            latestBlock: 19234567,
-            totalTransactions: "2500000000",
-            totalAccounts: "245000000",
-            tps: 15.5,
-            gasPrice: "25000000000",
-            marketCap: "250000000000",
-            totalValueLocked: "45000000000"
-          }]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_BLOCKCHAIN_STATS_ANKR") {
-      return true;
-    }
-    logGranular7("Validating GET_BLOCKCHAIN_STATS_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (((_b2 = content.filters) == null ? void 0 : _b2.blockchain) && !Array.isArray(content.filters.blockchain)) {
-        throw new ValidationError("Blockchain must be an array");
-      }
-      logGranular7("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular7("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c;
-    logGranular7("Executing GET_BLOCKCHAIN_STATS_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      console.log("Debug - Message content details:", {
-        hasText: !!(messageContent == null ? void 0 : messageContent.text),
-        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
-        textContent: messageContent == null ? void 0 : messageContent.text,
-        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasChain: !!parsedContent.chain,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["chain"]);
-      const requestParams = {
-        blockchain: parsedContent.chain
-        // Changed from array to string
-      };
-      console.log("Debug - API request parameters:", {
-        params: requestParams,
-        endpoint: ANKR_ENDPOINTS.production.multichain
-      });
-      try {
-        const response = await axios7.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getBlockchainStats",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular7("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const stats = response.data.result.stats;
-        let formattedText = "";
-        for (const stat of stats) {
-          formattedText += `Statistics for ${stat.blockchain.toUpperCase()}:
-
-`;
-          formattedText += `Latest Block: ${stat.latestBlockNumber.toLocaleString()}
-`;
-          formattedText += `Total Transactions: ${(stat.totalTransactionsCount / 1e9).toFixed(1)}B
-`;
-          formattedText += `Total Events: ${(stat.totalEventsCount / 1e9).toFixed(1)}B
-`;
-          formattedText += `Block Time: ${(stat.blockTimeMs / 1e3).toFixed(1)} seconds
-`;
-          formattedText += `Native Coin Price: $${Number(stat.nativeCoinUsdPrice).toFixed(2)}
-
-`;
-        }
-        if (callback) {
-          logGranular7("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              stats: stats.map((stat) => ({
-                blockchain: stat.blockchain,
-                latestBlock: stat.latestBlockNumber,
-                totalTransactions: stat.totalTransactionsCount.toString(),
-                totalEvents: stat.totalEventsCount.toString(),
-                blockTime: stat.blockTimeMs / 1e3,
-                nativeCoinPrice: stat.nativeCoinUsdPrice
-              }))
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular7("API request failed", { error });
-        if (axios7.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch blockchain stats: ${error.message}`,
-            (_c = error.response) == null ? void 0 : _c.status
-          );
-        }
-        throw new APIError("Failed to fetch blockchain stats");
-      }
-    } catch (error) {
-      logGranular7("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting blockchain stats: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_BLOCKCHAIN_STATS_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetBlockchainStats",
+    requestValidator: validateGetBlockchainStatsRequest,
+    requestSchema: getBlockchainStatsRequestSchema,
+    methodHandler: getBlockchainStatsHandler,
+    responseFormatter: formatGetBlockchainStatsReply
+  })
 };
 
 // src/actions/actionGetCurrencies.ts
-import { elizaLogger as elizaLogger9 } from "@elizaos/core";
-import axios8 from "axios";
-var config8 = getConfig();
-var GRANULAR_LOG8 = config8.ANKR_GRANULAR_LOG;
-var logGranular8 = (message, data) => {
-  if (GRANULAR_LOG8) {
-    elizaLogger9.debug(`[GetCurrencies] ${message}`, data);
-    console.log(`[GetCurrencies] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z9 } from "zod";
+var getCurrenciesRequestSchema = z9.object({
+  blockchain: z9.nativeEnum(Blockchains).describe("The blockchain to get currencies for")
+});
+var validateGetCurrenciesRequest = (content) => {
+  const result = getCurrenciesRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetCurrenciesReply = (request, response) => {
+  const { currencies, syncStatus } = response;
+  let formattedText = `Here are the top currencies on ${request.blockchain}:
+
+`;
+  if (currencies.length === 0) {
+    formattedText += "No currencies found";
+    return formattedText;
+  }
+  currencies.forEach((currency, index) => {
+    formattedText += `${index + 1}. ${currency.name} (${currency.symbol})
+`;
+    if (currency.address && currency.address !== "0x0000000000000000000000000000000000000000") {
+      formattedText += `   Contract: ${currency.address.slice(
+        0,
+        6
+      )}...${currency.address.slice(-4)}
+`;
+    } else {
+      formattedText += `   Native Token
+`;
+    }
+    formattedText += `   Decimals: ${currency.decimals}
+
+`;
+  });
+  if (syncStatus) {
+    formattedText += `Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})`;
+  }
+  return formattedText;
+};
+var getCurrenciesHandler = async (provider, request) => {
+  return provider.getCurrencies({
+    blockchain: request.blockchain
+  });
 };
 var actionGetCurrencies = {
   name: "GET_CURRENCIES_ANKR",
-  similes: ["LIST_CURRENCIES", "SHOW_CURRENCIES", "VIEW_CURRENCIES", "FETCH_CURRENCIES"],
+  similes: [
+    "LIST_CURRENCIES",
+    "SHOW_CURRENCIES",
+    "VIEW_CURRENCIES",
+    "FETCH_CURRENCIES"
+  ],
   description: "Retrieve information about currencies on specified blockchain networks.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me the top currencies on [chain]eth[/chain]",
-        filters: {
-          blockchain: "eth",
-          pageSize: 5,
-          pageToken: "eyJsYXN0X2JhbGFuY2UiOiIyIn0="
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me the top currencies on Ethereum"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the top currencies on Ethereum:\n\n1. Ethereum (ETH)\n   Market Cap: $250B\n   Holders: 2.5M\n   Total Supply: 120.5M ETH\n\n2. USD Coin (USDC)\n   Contract: 0xa0b8...c4d5\n   Market Cap: $45B\n   Holders: 1.2M\n   Total Supply: 45B USDC",
-        success: true,
-        data: {
-          currencies: [
-            {
-              blockchain: "eth",
-              address: "0x0000000000000000000000000000000000000000",
-              name: "Ethereum",
-              symbol: "ETH",
-              decimals: 18
-            }
-          ]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_CURRENCIES_ANKR") {
-      return true;
-    }
-    logGranular8("Validating GET_CURRENCIES_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain)) {
-        throw new ValidationError("Blockchain is required");
-      }
-      logGranular8("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular8("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d;
-    logGranular8("Executing GET_CURRENCIES_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasChain: !!parsedContent.chain,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["chain"]);
-      const requestParams = {
-        blockchain: parsedContent.chain,
-        pageSize: ((_c = messageContent.filters) == null ? void 0 : _c.pageSize) ?? 5
-      };
-      console.log("Debug - API request parameters:", {
-        params: requestParams,
-        endpoint: ANKR_ENDPOINTS.production.multichain
-      });
-      try {
-        const response = await axios8.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getCurrencies",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular8("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const currencies = response.data.result.currencies;
-        let formattedText = `Here are the top currencies from ${parsedContent.chain ? parsedContent.chain[0].toUpperCase() : "Unknown Chain"}:
-
-`;
-        let index = 0;
-        for (const currency of currencies) {
-          formattedText += [
-            `${index + 1}. ${currency.name} (${currency.symbol})`,
-            currency.address ? `   Contract: ${currency.address.slice(0, 6)}...${currency.address.slice(-4)}` : "",
-            `   Decimals: ${currency.decimals}`,
-            currency.thumbnail ? `   Logo: ${currency.thumbnail}` : "",
-            "",
-            ""
-          ].filter(Boolean).join("\n");
-          index++;
-        }
-        if (callback) {
-          logGranular8("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              currencies,
-              syncStatus: response.data.result.syncStatus
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular8("API request failed", { error });
-        if (axios8.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch currencies data: ${error.message}`,
-            (_d = error.response) == null ? void 0 : _d.status
-          );
-        }
-        throw new APIError("Failed to fetch currencies data");
-      }
-    } catch (error) {
-      logGranular8("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting currencies: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_CURRENCIES_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetCurrencies",
+    requestValidator: validateGetCurrenciesRequest,
+    requestSchema: getCurrenciesRequestSchema,
+    methodHandler: getCurrenciesHandler,
+    responseFormatter: formatGetCurrenciesReply
+  })
 };
 
 // src/actions/actionGetInteractions.ts
-import { elizaLogger as elizaLogger10 } from "@elizaos/core";
-import axios9 from "axios";
-var config9 = getConfig();
-var GRANULAR_LOG9 = config9.ANKR_GRANULAR_LOG;
-var logGranular9 = (message, data) => {
-  if (GRANULAR_LOG9) {
-    elizaLogger10.debug(`[GetInteractions] ${message}`, data);
-    console.log(`[GetInteractions] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z10 } from "zod";
+var getInteractionsRequestSchema = z10.object({
+  address: z10.string().startsWith("0x").describe("The wallet address to get interactions for"),
+  blockchain: z10.nativeEnum(Blockchains).optional().describe("The blockchain to check interactions on (optional)")
+});
+var validateGetInteractionsRequest = (content) => {
+  const result = getInteractionsRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetInteractionsReply = (request, response) => {
+  const { blockchains: blockchains4, syncStatus } = response;
+  let formattedText = `Blockchain interactions for address ${request.address}:
+
+`;
+  if (blockchains4.length === 0) {
+    formattedText += "No interactions found on any blockchain";
+    return formattedText;
+  }
+  formattedText += `This address has interacted with the following blockchains:
+`;
+  blockchains4.forEach((chain, index) => {
+    formattedText += `${index + 1}. ${chain}
+`;
+  });
+  if (syncStatus) {
+    formattedText += `
+Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})`;
+  }
+  return formattedText;
+};
+var getInteractionsHandler = async (provider, request) => {
+  return provider.getInteractions({
+    address: request.address,
+    // Only include blockchain if it's provided
+    ...request.blockchain && { blockchain: request.blockchain }
+  });
 };
 var actionGetInteractions = {
   name: "GET_INTERACTIONS_ANKR",
-  similes: ["FETCH_INTERACTIONS", "SHOW_INTERACTIONS", "VIEW_INTERACTIONS", "LIST_INTERACTIONS"],
+  similes: [
+    "FETCH_INTERACTIONS",
+    "SHOW_INTERACTIONS",
+    "VIEW_INTERACTIONS",
+    "LIST_INTERACTIONS"
+  ],
   description: "Retrieve interactions between wallets and smart contracts on specified blockchain networks.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me interactions for the wallet [wallet]0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45[/wallet]",
-        filters: {
-          blockchain: "eth",
-          // Changed from string[] to string
-          address: "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
-          pageSize: 5,
-          pageToken: "eyJsYXN0X2Jsb2NrIjoiMTIzNDU2Nzg4IiwibGFzdF9pbnRlcmFjdGlvbl9pbmRleCI6IjEifQ=="
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me interactions for the wallet 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the recent interactions:\n\n1. Transfer (2024-03-15 14:30 UTC)\n   From: 0xabc...def1\n   To: 0x123...5678\n   Value: 1.5 ETH\n   Gas Used: 21,000\n   Tx Hash: 0xdef...789\n\n2. Approve (2024-03-15 14:25 UTC)\n   From: 0xabc...def1\n   To: 0x123...5678\n   Value: 0 ETH\n   Gas Used: 45,000\n   Tx Hash: 0x789...012",
-        success: true,
-        data: {
-          interactions: [{
-            blockchain: "eth",
-            transactionHash: "0xdef...789",
-            blockNumber: 17000100,
-            timestamp: "2024-03-15T14:30:00Z",
-            from: "0xabcdef1234567890abcdef1234567890abcdef12",
-            to: "0x1234567890abcdef1234567890abcdef12345678",
-            value: "1500000000000000000",
-            gasPrice: "20000000000",
-            gasUsed: "21000",
-            methodName: "transfer",
-            logs: [{
-              address: "0x1234567890abcdef1234567890abcdef12345678",
-              topics: ["0x000...123"],
-              data: "0x000...456",
-              logIndex: 0
-            }]
-          }]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_INTERACTIONS_ANKR") {
-      return true;
-    }
-    logGranular9("Validating GET_INTERACTIONS_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.address)) {
-        throw new ValidationError("Wallet address is required");
-      }
-      logGranular9("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular9("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c;
-    logGranular9("Executing GET_INTERACTIONS_ANKR action");
-    try {
-      const messageContent = message.content;
-      const parsedContent = parseAPIContent(messageContent.text);
-      validateRequiredFields(parsedContent, ["wallet"]);
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      const requestParams = {
-        blockchain: parsedContent.chain || "eth",
-        address: parsedContent.wallet,
-        pageSize: ((_a2 = messageContent.filters) == null ? void 0 : _a2.pageSize) ?? 5,
-        pageToken: (_b2 = messageContent.filters) == null ? void 0 : _b2.pageToken
-      };
-      try {
-        const response = await axios9.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getInteractions",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular9("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        const formattedText = `Blockchain Status Information:
-
-Available Blockchains: ${response.data.result.blockchains.join(", ")}
-Sync Status: ${response.data.result.syncStatus.status}
-Lag: ${response.data.result.syncStatus.lag}`;
-        if (callback) {
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              interactions: [],
-              syncStatus: response.data.result.syncStatus,
-              availableBlockchains: response.data.result.blockchains
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular9("API request failed", { error });
-        if (axios9.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch interactions data: ${error.message}`,
-            (_c = error.response) == null ? void 0 : _c.status
-          );
-        }
-        throw new APIError("Failed to fetch interactions data");
-      }
-    } catch (error) {
-      logGranular9("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting interactions: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_INTERACTIONS_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetInteractions",
+    requestValidator: validateGetInteractionsRequest,
+    requestSchema: getInteractionsRequestSchema,
+    methodHandler: getInteractionsHandler,
+    responseFormatter: formatGetInteractionsReply
+  })
 };
 
 // src/actions/actionGetNFTHolders.ts
-import { elizaLogger as elizaLogger11 } from "@elizaos/core";
-import axios10 from "axios";
-var config10 = getConfig();
-var GRANULAR_LOG10 = config10.ANKR_GRANULAR_LOG;
-var logGranular10 = (message, data) => {
-  if (GRANULAR_LOG10) {
-    elizaLogger11.debug(`[GetNFTHolders] ${message}`, data);
-    console.log(`[GetNFTHolders] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z11 } from "zod";
+var getNFTHoldersRequestSchema = z11.object({
+  blockchain: z11.nativeEnum(Blockchains).default("eth" /* ETH */).describe("The blockchain to get NFT holders from"),
+  contractAddress: z11.string().startsWith("0x").describe("The NFT contract address to get holders for")
+});
+var validateGetNFTHoldersRequest = (content) => {
+  const result = getNFTHoldersRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetNFTHoldersReply = (request, response) => {
+  const { holders, syncStatus } = response;
+  let formattedText = `NFT Holders for contract ${request.contractAddress} on ${request.blockchain}:
+
+`;
+  if (holders.length === 0) {
+    formattedText += "No holders found for this NFT contract";
+    return formattedText;
+  }
+  formattedText += `Total Holders: ${holders.length}
+
+`;
+  holders.forEach((holderAddress, index) => {
+    formattedText += `${index + 1}. ${holderAddress}
+`;
+  });
+  if (syncStatus) {
+    formattedText += `
+Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})
+`;
+    formattedText += `Last Update: ${new Date(
+      syncStatus.timestamp * 1e3
+    ).toLocaleString()}`;
+  }
+  return formattedText;
+};
+var getNFTHoldersHandler = async (provider, request) => {
+  return provider.getNFTHolders({
+    blockchain: request.blockchain,
+    contractAddress: request.contractAddress,
+    pageSize: 10
+  });
 };
 var actionGetNFTHolders = {
   name: "GET_NFT_HOLDERS_ANKR",
-  similes: ["FETCH_NFT_HOLDERS", "SHOW_NFT_HOLDERS", "VIEW_NFT_HOLDERS", "LIST_NFT_HOLDERS"],
+  similes: [
+    "FETCH_NFT_HOLDERS",
+    "SHOW_NFT_HOLDERS",
+    "VIEW_NFT_HOLDERS",
+    "LIST_NFT_HOLDERS"
+  ],
   description: "Retrieve holders of specific NFTs on specified blockchain networks.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me holders of NFT contract [contract]0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258[/contract] on [chain]bsc[/chain]",
-        filters: {
-          blockchain: "bsc",
-          // Changed from string[] to string
-          contractAddress: "0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258",
-          pageSize: 5
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me holders of NFT contract 0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258 on bsc"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "Here are the NFT holders:\n\n1. 0xabc...def1\n   Balance: 1.5\n   Raw Balance: 1500000000000000000\n\n2. 0xdef...789a\n   Balance: 2.0\n   Raw Balance: 2000000000000000000",
-        success: true,
-        data: {
-          holders: [{
-            holderAddress: "0xabcdef1234567890abcdef1234567890abcdef12",
-            balance: "1.5",
-            balanceRawInteger: "1500000000000000000"
-          }],
-          blockchain: "bsc",
-          contractAddress: "0xf307910A4c7bbc79691fD374889b36d8531B08e3",
-          tokenDecimals: 18,
-          holdersCount: 1e3,
-          syncStatus: {
-            timestamp: 1737769593,
-            lag: "-2m",
-            status: "synced"
-          }
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2, _c;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFT_HOLDERS_ANKR") {
-      return true;
-    }
-    logGranular10("Validating GET_NFT_HOLDERS_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.contractAddress)) {
-        throw new ValidationError("Contract address is required");
-      }
-      if (((_c = content.filters) == null ? void 0 : _c.blockchain) && typeof content.filters.blockchain !== "string") {
-        throw new ValidationError("Blockchain must be a string");
-      }
-      logGranular10("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular10("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d;
-    logGranular10("Executing GET_NFT_HOLDERS_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasContract: !!parsedContent.contract,
-        hasToken: !!parsedContent.token,
-        hasChain: !!parsedContent.chain,
-        contract: parsedContent.contract,
-        token: parsedContent.token,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["contract"]);
-      const requestParams = {
-        blockchain: parsedContent.chain,
-        contractAddress: parsedContent.contract,
-        pageSize: ((_c = messageContent.filters) == null ? void 0 : _c.pageSize) || 10,
-        pageToken: (_d = messageContent.filters) == null ? void 0 : _d.pageToken
-      };
-      console.log("Debug - API request parameters:", {
-        params: requestParams,
-        endpoint
-      });
-      const response = await axios10.post(
-        endpoint,
-        {
-          jsonrpc: "2.0",
-          method: "ankr_getNFTHolders",
-          params: requestParams,
-          id: 1
-        },
-        {
-          headers: {
-            "Content-Type": "application/json"
-          }
-        }
-      );
-      logGranular10("Received response from Ankr API", {
-        statusCode: response.status,
-        data: response.data
-      });
-      const result = response.data.result;
-      const formattedText = `NFT Holders:
-Total Holders: ${result.holders.length}
-
-${result.holders.map(
-        (holderAddress, index) => `${index + 1}. ${holderAddress}`
-      ).join("\n")}
-
-${result.nextPageToken ? "More holders available. Use the page token to see more.\n" : ""}
-${result.syncStatus ? `Sync Status:
-Last Update: ${new Date(result.syncStatus.timestamp * 1e3).toLocaleString()}
-Lag: ${result.syncStatus.lag}
-Status: ${result.syncStatus.status}` : ""}`;
-      logGranular10("Formatted response text", { formattedText });
-      if (callback) {
-        logGranular10("Sending success callback with formatted text");
-        callback({
-          text: formattedText,
-          success: true,
-          data: {
-            holders: result.holders.map((address) => ({
-              holderAddress: address,
-              balance: "1",
-              // Default values since not provided in response
-              balanceRawInteger: "1"
-            })),
-            nextPageToken: result.nextPageToken,
-            syncStatus: result.syncStatus
-          }
-        });
-      }
-      return true;
-    } catch (error) {
-      logGranular10("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting NFT holders: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_NFT_HOLDERS_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetNFTHolders",
+    requestValidator: validateGetNFTHoldersRequest,
+    requestSchema: getNFTHoldersRequestSchema,
+    methodHandler: getNFTHoldersHandler,
+    responseFormatter: formatGetNFTHoldersReply
+  })
 };
 
 // src/actions/actionGetNFTTransfers.ts
-import { elizaLogger as elizaLogger12 } from "@elizaos/core";
-import axios11 from "axios";
-var config11 = getConfig();
-var GRANULAR_LOG11 = config11.ANKR_GRANULAR_LOG;
-var logGranular11 = (message, data) => {
-  if (GRANULAR_LOG11) {
-    elizaLogger12.debug(`[GetNFTTransfers] ${message}`, data);
-    console.log(`[GetNFTTransfers] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z12 } from "zod";
+var getNFTTransfersRequestSchema = z12.object({
+  blockchain: z12.nativeEnum(Blockchains).describe("The blockchain to get NFT transfers from"),
+  contractAddress: z12.string().refine((val) => !val || val.startsWith("0x"), {
+    message: "Contract address must be empty or start with 0x"
+  }).optional().describe("The NFT contract address (optional)"),
+  fromAddress: z12.string().refine((val) => !val || val.startsWith("0x"), {
+    message: "From address must be empty or start with 0x"
+  }).optional().describe("The sender address (optional)"),
+  toAddress: z12.string().refine((val) => !val || val.startsWith("0x"), {
+    message: "To address must be empty or start with 0x"
+  }).optional().describe("The recipient address (optional)"),
+  fromTimestamp: z12.number().optional().describe("Start timestamp for the transfers (optional)"),
+  toTimestamp: z12.number().optional().describe("End timestamp for the transfers (optional)")
+});
+var validateGetNFTTransfersRequest = (content) => {
+  const result = getNFTTransfersRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  const typedContent = content;
+  if (!typedContent.contractAddress && !typedContent.fromAddress && !typedContent.toAddress) {
+    throw new ValidationError(
+      "At least one of contractAddress, fromAddress, or toAddress must be provided"
+    );
+  }
+  return true;
+};
+var formatGetNFTTransfersReply = (request, response) => {
+  const { transfers, syncStatus } = response;
+  let formattedText = `NFT Transfers on ${request.blockchain}:
+
+`;
+  if (request.contractAddress) {
+    formattedText += `Contract: ${request.contractAddress}
+
+`;
+  }
+  if (request.fromAddress) {
+    formattedText += `From Address: ${request.fromAddress}
+
+`;
+  }
+  if (request.toAddress) {
+    formattedText += `To Address: ${request.toAddress}
+
+`;
+  }
+  if (transfers.length === 0) {
+    formattedText += "No NFT transfers found";
+    return formattedText;
+  }
+  transfers.forEach((transfer, index) => {
+    const date = new Date(transfer.timestamp * 1e3).toLocaleString();
+    formattedText += `${index + 1}. ${transfer.collectionName || "NFT"} (ID: ${transfer.tokenId || "Unknown"})
+`;
+    formattedText += `   From: ${transfer.fromAddress.slice(
+      0,
+      6
+    )}...${transfer.fromAddress.slice(-4)}
+`;
+    formattedText += `   To: ${transfer.toAddress.slice(
+      0,
+      6
+    )}...${transfer.toAddress.slice(-4)}
+`;
+    formattedText += `   Contract: ${transfer.contractAddress.slice(
+      0,
+      6
+    )}...${transfer.contractAddress.slice(-4)}
+`;
+    formattedText += `   Type: ${transfer.type}
+`;
+    formattedText += `   Tx Hash: ${transfer.transactionHash.slice(
+      0,
+      6
+    )}...${transfer.transactionHash.slice(-4)}
+`;
+    formattedText += `   Time: ${date}
+
+`;
+  });
+  if (syncStatus) {
+    formattedText += `Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})
+`;
+    formattedText += `Last Update: ${new Date(
+      syncStatus.timestamp * 1e3
+    ).toLocaleString()}`;
+  }
+  return formattedText;
+};
+var getNFTTransfersHandler = async (provider, request) => {
+  const params = {
+    blockchain: request.blockchain,
+    pageSize: 10
+  };
+  if (request.contractAddress) {
+    params.contractAddress = request.contractAddress;
+  }
+  if (request.fromAddress) {
+    params.fromAddress = request.fromAddress;
+  }
+  if (request.toAddress) {
+    params.toAddress = request.toAddress;
+  }
+  if (request.fromTimestamp) {
+    params.fromTimestamp = request.fromTimestamp;
+  }
+  if (request.toTimestamp) {
+    params.toTimestamp = request.toTimestamp;
+  }
+  return provider.getNftTransfers(params);
 };
 var actionGetNFTTransfers = {
   name: "GET_NFT_TRANSFERS_ANKR",
-  similes: ["LIST_NFT_TRANSFERS", "SHOW_NFT_TRANSFERS", "VIEW_NFT_TRANSFERS", "GET_NFT_HISTORY"],
-  description: "Get NFT transfer history for a specific address or contract on eth.",
-  // Fix the example data to match the interface
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me NFT transfers for contract [contract]0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258[/contract] [chain]eth[/chain] [fromtimestamp]1655197483[/fromtimestamp][totimestamp]1671974699[/totimestamp]",
-        filters: {
-          blockchain: "eth",
-          contractAddress: "0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258",
-          pageSize: 5
+  similes: [
+    "FETCH_NFT_TRANSFERS",
+    "SHOW_NFT_TRANSFERS",
+    "VIEW_NFT_TRANSFERS",
+    "LIST_NFT_TRANSFERS"
+  ],
+  description: "Retrieve NFT transfer history on specified blockchain networks.",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me NFT transfers for contract 0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d on eth"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "NFT Transfers:\n\n1. Transfer of Token #1234\n   From: 0xabcd...ef01\n   To: 0x9876...4321\n   Time: 1/24/2024, 10:30:15 AM\n   Token: CoolNFT #123\n\n2. Transfer of Token #456\n   From: 0x9876...3210\n   To: 0xfedc...ba98\n   Time: 1/24/2024, 10:15:22 AM\n   Token: CoolNFT #456\n",
-        success: true,
-        data: {
-          transfers: [
-            {
-              fromAddress: "0xabcdef0123456789abcdef0123456789abcdef01",
-              toAddress: "0x9876543210fedcba9876543210fedcba98765432",
-              contractAddress: "0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258",
-              value: "1",
-              valueRawInteger: "1",
-              blockchain: "eth",
-              tokenName: "CoolNFT",
-              tokenSymbol: "COOL",
-              tokenDecimals: 18,
-              thumbnail: "https://example.com/nft/123.png",
-              transactionHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-              blockHeight: 123456789,
-              timestamp: 1706093415
-            },
-            {
-              fromAddress: "0x9876543210987654321098765432109876543210",
-              toAddress: "0xfedcba9876543210fedcba9876543210fedcba98",
-              contractAddress: "0x34d85c9cdeb23fa97cb08333b511ac86e1c4e258",
-              value: "1",
-              valueRawInteger: "1",
-              blockchain: "eth",
-              tokenName: "CoolNFT",
-              tokenSymbol: "COOL",
-              tokenDecimals: 18,
-              thumbnail: "https://example.com/nft/456.png",
-              transactionHash: "0x9876543210fedcba9876543210fedcba9876543210fedcba9876543210fedcba",
-              blockHeight: 123456788,
-              timestamp: 1706092522
-            }
-          ],
-          syncStatus: {
-            timestamp: 1706093415,
-            lag: "0s",
-            status: "synced"
-          }
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2, _c;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFT_TRANSFERS_ANKR") {
-      return true;
-    }
-    logGranular11("Validating GET_NFT_TRANSFERS_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain) || !((_c = content.filters) == null ? void 0 : _c.contractAddress)) {
-        throw new ValidationError("Blockchain and contract address are required");
-      }
-      logGranular11("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular11("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c;
-    logGranular11("Executing GET_NFT_TRANSFERS_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      console.log("Debug - Message content details:", {
-        hasText: !!(messageContent == null ? void 0 : messageContent.text),
-        hasFilters: !!(messageContent == null ? void 0 : messageContent.filters),
-        textContent: messageContent == null ? void 0 : messageContent.text,
-        contentType: typeof (messageContent == null ? void 0 : messageContent.text)
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasContract: !!parsedContent.contract,
-        hasChain: !!parsedContent.chain,
-        hasFromTimestamp: !!parsedContent.fromTimestamp,
-        hasToTimestamp: !!parsedContent.toTimestamp,
-        contract: parsedContent.contract,
-        chain: parsedContent.chain,
-        fromTimestamp: parsedContent.fromTimestamp,
-        toTimestamp: parsedContent.toTimestamp,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["contract", "chain", "fromTimestamp", "toTimestamp"]);
-      const requestParams = {
-        address: parsedContent.contract,
-        blockchain: [parsedContent.chain],
-        fromTimestamp: parsedContent.fromTimestamp,
-        toTimestamp: parsedContent.toTimestamp
-      };
-      console.log("Debug - API request parameters:", {
-        params: requestParams,
-        endpoint: ANKR_ENDPOINTS.production.multichain
-      });
-      try {
-        const response = await axios11.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getTokenTransfers",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular11("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const transfers = response.data.result.transfers;
-        let formattedText = "Token Transfers:\n\n";
-        transfers.forEach((transfer, index) => {
-          formattedText += `${index + 1}. Transfer of ${transfer.tokenName} (${transfer.tokenSymbol})
-`;
-          formattedText += `   From: ${transfer.fromAddress.slice(0, 6)}...${transfer.fromAddress.slice(-4)}
-`;
-          formattedText += `   To: ${transfer.toAddress.slice(0, 6)}...${transfer.toAddress.slice(-4)}
-`;
-          formattedText += `   Amount: ${transfer.value}
-`;
-          formattedText += `   Time: ${new Date(transfer.timestamp * 1e3).toLocaleString()}
-`;
-          formattedText += `   Tx Hash: ${transfer.transactionHash}
-`;
-          if (transfer.thumbnail) {
-            formattedText += `   Token Icon: ${transfer.thumbnail}
-`;
-          }
-          formattedText += "\n";
-        });
-        if (callback) {
-          logGranular11("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              transfers,
-              syncStatus: response.data.result.syncStatus
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular11("API request failed", { error });
-        if (axios11.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch NFT transfers: ${error.message}`,
-            (_c = error.response) == null ? void 0 : _c.status
-          );
-        }
-        throw new APIError("Failed to fetch NFT transfers");
-      }
-    } catch (error) {
-      logGranular11("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting NFT transfers: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_NFT_TRANSFERS_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetNFTTransfers",
+    requestValidator: validateGetNFTTransfersRequest,
+    requestSchema: getNFTTransfersRequestSchema,
+    methodHandler: getNFTTransfersHandler,
+    responseFormatter: formatGetNFTTransfersReply
+  })
 };
 
 // src/actions/actionGetNFTMetadata.ts
-import { elizaLogger as elizaLogger13 } from "@elizaos/core";
-import axios12 from "axios";
-var config12 = getConfig();
-var GRANULAR_LOG12 = config12.ANKR_GRANULAR_LOG;
-var logGranular12 = (message, data) => {
-  if (GRANULAR_LOG12) {
-    elizaLogger13.debug(`[GetNFTMetadata] ${message}`, data);
-    console.log(`[GetNFTMetadata] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z13 } from "zod";
+var getNFTMetadataRequestSchema = z13.object({
+  blockchain: z13.nativeEnum(Blockchains).describe("The blockchain to get NFT metadata from"),
+  contractAddress: z13.string().startsWith("0x").describe("The NFT contract address"),
+  tokenId: z13.string().describe("The token ID of the NFT")
+});
+var validateGetNFTMetadataRequest = (content) => {
+  const result = getNFTMetadataRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetNFTMetadataReply = (request, response) => {
+  const { metadata, attributes, syncStatus } = response;
+  if (!metadata || !attributes) {
+    return `No metadata found for NFT with token ID ${request.tokenId} at contract ${request.contractAddress} on ${request.blockchain}`;
+  }
+  let formattedText = `NFT Metadata for ${attributes.name || `Token #${request.tokenId}`}:
+
+`;
+  const collectionName = attributes.name ? attributes.name.split("#")[0].trim() : metadata.collectionName || "Unknown Collection";
+  formattedText += `Collection: ${collectionName}
+`;
+  formattedText += `Contract: ${metadata.contractAddress.slice(
+    0,
+    6
+  )}...${metadata.contractAddress.slice(-4)} (${metadata.contractType})
+
+`;
+  if (attributes.description) {
+    formattedText += `Description: ${attributes.description}
+
+`;
+  }
+  if (attributes.traits && attributes.traits.length > 0) {
+    formattedText += "Traits:\n";
+    for (const trait of attributes.traits) {
+      formattedText += `- ${trait.trait_type}: ${trait.value}
+`;
+    }
+  }
+  if (attributes.imageUrl) {
+    formattedText += `
+Image URL: ${attributes.imageUrl}
+`;
+  }
+  if (attributes.tokenUrl) {
+    formattedText += `Token URL: ${attributes.tokenUrl}
+`;
+  }
+  if (syncStatus) {
+    formattedText += `
+Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})
+`;
+    formattedText += `Last Update: ${new Date(
+      syncStatus.timestamp * 1e3
+    ).toLocaleString()}`;
+  }
+  return formattedText;
+};
+var getNFTMetadataHandler = async (provider, request) => {
+  return provider.getNFTMetadata({
+    blockchain: request.blockchain,
+    contractAddress: request.contractAddress,
+    tokenId: request.tokenId,
+    forceFetch: true
+  });
 };
 var actionGetNFTMetadata = {
   name: "GET_NFT_METADATA_ANKR",
   similes: ["GET_NFT_INFO", "SHOW_NFT_DETAILS", "VIEW_NFT", "NFT_METADATA"],
   description: "Get detailed metadata for a specific NFT including traits, images, and contract information.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me the metadata for NFT [token]1234[/token] at contract [contract]0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d[/contract] [chain]eth[/chain]",
-        filters: {
-          blockchain: "eth",
-          contractAddress: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
-          tokenId: "1234"
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me the metadata for NFT token 1234 at contract 0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d on eth"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "NFT Metadata for Bored Ape #1234:\n\nCollection: Bored Ape Yacht Club\nContract: 0xbc4c...f13d (ERC721)\n\nDescription: A unique Bored Ape NFT living on the Ethereum blockchain\n\nTraits:\n- Background: Blue\n- Fur: Dark Brown\n- Eyes: Bored\n- Mouth: Grin\n",
-        success: true,
-        data: {
-          metadata: {
-            blockchain: "eth",
-            contractAddress: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d",
-            contractType: "ERC721",
-            tokenId: "1234"
-          },
-          attributes: {
-            contractType: "ERC721",
-            tokenUrl: "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/1234",
-            imageUrl: "ipfs://QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ",
-            name: "Bored Ape #1234",
-            description: "A unique Bored Ape NFT living on the Ethereum blockchain",
-            traits: [
-              { trait_type: "Background", value: "Blue" },
-              { trait_type: "Fur", value: "Dark Brown" },
-              { trait_type: "Eyes", value: "Bored" },
-              { trait_type: "Mouth", value: "Grin" }
-            ]
-          }
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2, _c, _d;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFT_METADATA_ANKR") {
-      return true;
-    }
-    logGranular12("Validating GET_NFT_METADATA_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain) || !((_c = content.filters) == null ? void 0 : _c.contractAddress) || !((_d = content.filters) == null ? void 0 : _d.tokenId)) {
-        throw new ValidationError("Blockchain, contract address, and token ID are required");
-      }
-      logGranular12("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular12("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c;
-    logGranular12("Executing GET_NFT_METADATA_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type,
-        allKeys: Object.keys(message.content || {})
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      console.log("Debug - Raw prompt:", {
-        text: messageContent.text,
-        promptLength: (_b2 = messageContent.text) == null ? void 0 : _b2.length
-      });
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasContract: !!parsedContent.contract,
-        hasToken: !!parsedContent.token,
-        hasChain: !!parsedContent.chain,
-        contract: parsedContent.contract,
-        token: parsedContent.token,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["contract", "token", "chain"]);
-      const requestParams = {
-        blockchain: parsedContent.chain,
-        contractAddress: parsedContent.contract,
-        tokenId: parsedContent.token
-      };
-      console.log("Debug - API request parameters:", {
-        params: requestParams,
-        endpoint: ANKR_ENDPOINTS.production.multichain
-      });
-      try {
-        const response = await axios12.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getNFTMetadata",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular12("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const nftData = response.data.result;
-        let formattedText = `NFT Metadata for ${nftData.attributes.name}:
-
-`;
-        formattedText += `Collection: ${nftData.attributes.name.split("#")[0].trim()}
-`;
-        formattedText += `Contract: ${nftData.metadata.contractAddress.slice(0, 6)}...${nftData.metadata.contractAddress.slice(-4)} (${nftData.metadata.contractType})
-
-`;
-        if (nftData.attributes.description) {
-          formattedText += `Description: ${nftData.attributes.description}
-
-`;
-        }
-        if (nftData.attributes.traits && nftData.attributes.traits.length > 0) {
-          formattedText += "Traits:\n";
-          for (const trait of nftData.attributes.traits) {
-            formattedText += `- ${trait.trait_type}: ${trait.value}
-`;
-          }
-        }
-        if (nftData.attributes.imageUrl) {
-          formattedText += `
-Image URL: ${nftData.attributes.imageUrl}
-`;
-        }
-        if (callback) {
-          logGranular12("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: nftData
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular12("API request failed", { error });
-        if (axios12.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch NFT metadata: ${error.message}`,
-            (_c = error.response) == null ? void 0 : _c.status
-          );
-        }
-        throw new APIError("Failed to fetch NFT metadata");
-      }
-    } catch (error) {
-      logGranular12("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting NFT metadata: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_NFT_METADATA_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetNFTMetadata",
+    requestValidator: validateGetNFTMetadataRequest,
+    requestSchema: getNFTMetadataRequestSchema,
+    methodHandler: getNFTMetadataHandler,
+    responseFormatter: formatGetNFTMetadataReply
+  })
 };
 
 // src/actions/actionGetNFTsByOwner.ts
-import { elizaLogger as elizaLogger14 } from "@elizaos/core";
-import axios13 from "axios";
-var config13 = getConfig();
-var GRANULAR_LOG13 = config13.ANKR_GRANULAR_LOG;
-var logGranular13 = (message, data) => {
-  if (GRANULAR_LOG13) {
-    elizaLogger14.debug(`[GetNFTsByOwner] ${message}`, data);
-    console.log(`[GetNFTsByOwner] ${message}`, data ? JSON.stringify(data, null, 2) : "");
+import { z as z14 } from "zod";
+var getNFTsByOwnerRequestSchema = z14.object({
+  blockchain: z14.union([z14.nativeEnum(Blockchains), z14.array(z14.nativeEnum(Blockchains))]).optional().describe("The blockchain(s) to get NFTs from"),
+  walletAddress: z14.string().startsWith("0x").describe("The wallet address to get NFTs for")
+});
+var validateGetNFTsByOwnerRequest = (content) => {
+  const result = getNFTsByOwnerRequestSchema.safeParse(content);
+  if (!result.success) {
+    throw new ValidationError(result.error.message);
   }
+  return result.success;
+};
+var formatGetNFTsByOwnerReply = (request, response) => {
+  const { assets, syncStatus } = response;
+  let formattedText = `NFTs owned by ${request.walletAddress}:
+
+`;
+  if (assets.length === 0) {
+    formattedText += "No NFTs found";
+    return formattedText;
+  }
+  assets.forEach((nft, index) => {
+    formattedText += `${index + 1}. ${nft.name || "Unnamed NFT"}
+`;
+    formattedText += `   Collection: ${nft.collectionName || "Unknown Collection"}
+`;
+    formattedText += `   Token ID: ${nft.tokenId}
+`;
+    formattedText += `   Blockchain: ${nft.blockchain}
+`;
+    formattedText += `   Contract: ${nft.contractAddress.slice(
+      0,
+      6
+    )}...${nft.contractAddress.slice(-4)}
+`;
+    if (nft.quantity && nft.quantity !== "1") {
+      formattedText += `   Quantity: ${nft.quantity}
+`;
+    }
+    formattedText += `   Type: ${nft.contractType}
+
+`;
+  });
+  if (syncStatus) {
+    formattedText += `Sync Status: ${syncStatus.status} (lag: ${syncStatus.lag})`;
+  }
+  return formattedText;
+};
+var getNFTsByOwnerHandler = async (provider, request) => {
+  return provider.getNFTsByOwner({
+    blockchain: request.blockchain,
+    walletAddress: request.walletAddress,
+    pageSize: 10
+  });
 };
 var actionGetNFTsByOwner = {
   name: "GET_NFTS_BY_OWNER_ANKR",
-  similes: ["LIST_NFTS", "SHOW_NFTS", "VIEW_NFTS", "FETCH_NFTS", "GET_OWNED_NFTS"],
-  description: "Retrieve all NFTs owned by a specific wallet address across multiple blockchains with detailed metadata.",
-  examples: [[
-    {
-      user: "user",
-      content: {
-        text: "Show me all NFTs owned by wallet [wallet]0x1234567890123456789012345678901234567890[/wallet] on [chain]eth[/chain]",
-        filters: {
-          blockchain: ["eth"],
-          walletAddress: "0x1234567890123456789012345678901234567890",
-          pageSize: 10
+  similes: [
+    "LIST_NFTS",
+    "SHOW_NFTS",
+    "VIEW_NFTS",
+    "FETCH_NFTS",
+    "GET_OWNED_NFTS"
+  ],
+  description: "Get NFTs owned by a specific wallet address across multiple blockchains",
+  examples: [
+    [
+      {
+        user: "user",
+        content: {
+          text: "Show me the NFTs owned by 0xd8da6bf26964af9d7eed9e03e53415d37aa96045"
         }
       }
-    },
-    {
-      user: "assistant",
-      content: {
-        text: "NFTs owned by 0x1234567890123456789012345678901234567890:\n\n1. Bored Ape #1234\n   Collection: Bored Ape Yacht Club\n   Contract: 0xbc4c...f13d\n   Token ID: 1234\n\n2. CryptoPunk #5678\n   Collection: CryptoPunks\n   Contract: 0x2505...42a2\n   Token ID: 5678\n",
-        success: true,
-        data: {
-          owner: "0x1234567890123456789012345678901234567890",
-          assets: [
-            {
-              blockchain: "eth",
-              name: "Bored Ape #1234",
-              tokenId: "1234",
-              tokenUrl: "ipfs://QmeSjSinHpPnmXmspMjwiXyN6zS4E9zccariGR3jxcaWtq/1234",
-              imageUrl: "ipfs://QmRRPWG96cmgTn2qSzjwr2qvfNEuhunv6FNeMFGa9bx6mQ",
-              collectionName: "Bored Ape Yacht Club",
-              symbol: "BAYC",
-              contractType: "ERC721",
-              contractAddress: "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
-            },
-            {
-              blockchain: "eth",
-              name: "CryptoPunk #5678",
-              tokenId: "5678",
-              tokenUrl: "https://cryptopunks.app/cryptopunks/details/5678",
-              imageUrl: "https://cryptopunks.app/cryptopunks/image/5678",
-              collectionName: "CryptoPunks",
-              symbol: "PUNK",
-              contractType: "ERC721",
-              contractAddress: "0x2505...42a2"
-            }
-          ]
-        }
-      }
-    }
-  ]],
-  // ------------------------------------------------------------------------------------------------
-  // Core Validation implementation
-  // ------------------------------------------------------------------------------------------------
+    ]
+  ],
   validate: async (_runtime, message) => {
-    var _a2, _b2, _c, _d;
-    if (((_a2 = message.content) == null ? void 0 : _a2.type) !== "GET_NFTS_BY_OWNER_ANKR") {
-      return true;
-    }
-    logGranular13("Validating GET_NFTS_BY_OWNER_ANKR action", {
-      content: message.content
-    });
-    try {
-      const content = message.content;
-      if (!((_b2 = content.filters) == null ? void 0 : _b2.blockchain) || !((_c = content.filters) == null ? void 0 : _c.walletAddress)) {
-        throw new ValidationError("Blockchain and wallet address are required");
-      }
-      if (((_d = content.filters) == null ? void 0 : _d.blockchain) && !Array.isArray(content.filters.blockchain)) {
-        throw new ValidationError("Blockchain must be an array");
-      }
-      logGranular13("Validation successful");
-      return true;
-    } catch (error) {
-      logGranular13("Validation failed", { error });
-      if (error instanceof ValidationError) {
-        throw error;
-      }
-      throw new ValidationError(error instanceof Error ? error.message : "Unknown validation error");
-    }
+    return true;
   },
-  // ------------------------------------------------------------------------------------------------
-  // Core Handler implementation
-  // ------------------------------------------------------------------------------------------------
-  handler: async (runtime, message, _state, _options = {}, callback) => {
-    var _a2, _b2, _c, _d;
-    logGranular13("Executing GET_NFTS_BY_OWNER_ANKR action");
-    try {
-      const messageContent = message.content;
-      console.log("Debug - Full message content:", {
-        fullContent: message.content,
-        rawText: messageContent == null ? void 0 : messageContent.text,
-        type: (_a2 = message.content) == null ? void 0 : _a2.type
-      });
-      const config14 = await validateankrConfig(runtime);
-      console.log("Debug - Config validated:", {
-        hasWallet: !!config14.ANKR_WALLET,
-        env: config14.ANKR_ENV
-      });
-      const wallet = config14.ANKR_WALLET;
-      if (!wallet) {
-        throw new ConfigurationError("ANKR_WALLET not found in environment variables");
-      }
-      const endpoint = `https://rpc.ankr.com/multichain/${wallet}`;
-      const parsedContent = parseAPIContent(messageContent.text);
-      console.log("Debug - Parsed API content:", {
-        hasWallet: !!parsedContent.wallet,
-        hasChain: !!parsedContent.chain,
-        wallet: parsedContent.wallet,
-        chain: parsedContent.chain,
-        matches: parsedContent.raw.matches
-      });
-      validateRequiredFields(parsedContent, ["wallet", "chain"]);
-      const requestParams = {
-        blockchain: [parsedContent.chain],
-        // API expects array
-        walletAddress: parsedContent.wallet,
-        pageSize: ((_b2 = messageContent.filters) == null ? void 0 : _b2.pageSize) ?? 10,
-        pageToken: (_c = messageContent.filters) == null ? void 0 : _c.pageToken
-      };
-      console.log("Debug - API request parameters:", requestParams);
-      try {
-        const response = await axios13.post(
-          endpoint,
-          {
-            jsonrpc: "2.0",
-            method: "ankr_getNFTsByOwner",
-            params: requestParams,
-            id: 1
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-        logGranular13("Received response from Ankr API", {
-          statusCode: response.status,
-          data: response.data
-        });
-        if (response.data.error) {
-          throw new APIError(`Ankr API error: ${response.data.error.message}`);
-        }
-        const { owner, assets, syncStatus } = response.data.result;
-        let formattedText = `NFTs owned by ${owner}:
-
-`;
-        for (const [index, nft] of assets.entries()) {
-          formattedText += `${index + 1}. ${nft.name || "Unnamed NFT"}
-`;
-          if (nft.collectionName) {
-            formattedText += `   Collection: ${nft.collectionName}
-`;
-          }
-          formattedText += `   Contract: ${nft.contractAddress.slice(0, 6)}...${nft.contractAddress.slice(-4)} (${nft.contractType})
-`;
-          formattedText += `   Token ID: ${nft.tokenId}
-`;
-          if (nft.quantity) {
-            formattedText += `   Quantity: ${nft.quantity}
-`;
-          }
-          if (nft.tokenUrl) {
-            formattedText += `   Metadata URL: ${nft.tokenUrl}
-`;
-          }
-          formattedText += "\n";
-        }
-        if (callback) {
-          logGranular13("Sending success callback with formatted text", { formattedText });
-          callback({
-            text: formattedText,
-            success: true,
-            data: {
-              owner,
-              assets,
-              syncStatus
-            }
-          });
-        }
-        return true;
-      } catch (error) {
-        logGranular13("API request failed", { error });
-        if (axios13.isAxiosError(error)) {
-          throw new APIError(
-            `Failed to fetch NFTs data: ${error.message}`,
-            (_d = error.response) == null ? void 0 : _d.status
-          );
-        }
-        throw new APIError("Failed to fetch NFTs data");
-      }
-    } catch (error) {
-      logGranular13("Handler execution failed", { error });
-      if (callback) {
-        const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
-        callback({
-          text: `Error getting NFTs: ${errorMessage}`,
-          success: false
-        });
-      }
-      if (error instanceof ConfigurationError || error instanceof ValidationError || error instanceof APIError) {
-        throw error;
-      }
-      throw new APIError("Failed to execute GET_NFTS_BY_OWNER_ANKR action");
-    }
-  }
+  handler: createAnkrHandler({
+    methodName: "GetNFTsByOwner",
+    requestValidator: validateGetNFTsByOwnerRequest,
+    requestSchema: getNFTsByOwnerRequestSchema,
+    methodHandler: getNFTsByOwnerHandler,
+    responseFormatter: formatGetNFTsByOwnerReply
+  })
 };
 
 // src/index.ts
@@ -2932,15 +1512,21 @@ var actions = [
   actionGetNFTMetadata,
   actionGetNFTsByOwner
 ];
-var ANKR_SPASH = getConfig().ANKR_WALLET;
+var ANKR_SPASH = getConfig().ANKR_API_KEY;
 var _a, _b;
 if (ANKR_SPASH) {
   console.log(`
 ${chalk.cyan("\u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510")}`);
-  console.log(chalk.cyan("\u2502") + chalk.yellow.bold("          ANKR PLUGIN             ") + chalk.cyan(" \u2502"));
+  console.log(
+    chalk.cyan("\u2502") + chalk.yellow.bold("          ANKR PLUGIN             ") + chalk.cyan(" \u2502")
+  );
   console.log(chalk.cyan("\u251C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2524"));
-  console.log(chalk.cyan("\u2502") + chalk.white("  Initializing ANKR Services...    ") + chalk.cyan("\u2502"));
-  console.log(chalk.cyan("\u2502") + chalk.white("  Version: 1.0.0                        ") + chalk.cyan("\u2502"));
+  console.log(
+    chalk.cyan("\u2502") + chalk.white("  Initializing ANKR Services...    ") + chalk.cyan("\u2502")
+  );
+  console.log(
+    chalk.cyan("\u2502") + chalk.white("  Version: 0.2.0                        ") + chalk.cyan("\u2502")
+  );
   console.log(chalk.cyan("\u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"));
   spinner.succeed(chalk.green("ANKR Plugin initialized successfully!"));
   const actionTable = new Table({
